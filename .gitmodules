@@ -1,0 +1,3 @@
+[submodule "auto3dgm"]
+	path = auto3dgm
+	url = https://github.com/ToothAndClaw/auto3dgm
