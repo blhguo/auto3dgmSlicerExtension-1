@@ -46,15 +46,29 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     #
     # Parameters Area
     #
-    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = "Parameters"
-    self.layout.addWidget(parametersCollapsibleButton)
+    # parametersCollapsibleButton = ctk.ctkCollapsibleButton()
+    # parametersCollapsibleButton.text = "Parameters"
+    # self.layout.addWidget(parametersCollapsibleButton)
 
     # Layout within the dummy collapsible button
-    parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
+    # parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
 
     # Add vertical spacer
-    self.layout.addStretch(1)
+    # self.layout.addStretch(1)
+
+    tabsWidget = qt.QTabWidget()
+
+    setupTab = qt.QWidget()
+    setupTabLayout = qt.QFormLayout(setupTab)
+    runTab = qt.QWidget()
+    runTabLayout = qt.QFormLayout(runTab)
+    outTab = qt.QWidget()
+    outTabLayout = qt.QFormLayout(outTab)
+
+    tabsWidget.addTab(setupTab, "Setup")
+    tabsWidget.addTab(runTab, "Run")
+    tabsWidget.addTab(outTab, "Visualize/Output")
+    self.layout.addWidget(tabsWidget)
 
   def cleanup(self):
     pass
