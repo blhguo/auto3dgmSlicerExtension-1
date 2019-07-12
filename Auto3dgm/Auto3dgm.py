@@ -60,18 +60,41 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     # self.layout.addStretch(1)
 
     tabsWidget = qt.QTabWidget()
+    setupTab = qt.QWidget()
+    setupTabLayout = qt.QFormLayout(setupTab)
+    
+    inputfolderWidget=ctk.ctkCollapsibleButton()
+    inputfolderLayout=qt.QFormLayout(inputfolderWidget)
+    inputfolderWidget.text = "Input Folder"
+    setupTabLayout.addRow(inputfolderWidget)
+
+    outputfolderWidget=ctk.ctkCollapsibleButton()
+    outputfolderLayout=qt.QFormLayout(outputfolderWidget)
+    outputfolderWidget.text = "Output Folder"
+    setupTabLayout.addRow(outputfolderWidget)
+
+
+
+
+
 
     self.meshText, volumeInLabel, self.meshFolderButton=self.textIn('Input folder','Choose input folder', '')
 
-    self.meshFolderButton.connect('clicked(bool)', self.meshFolderSelected)
+    self.meshFolderButton.connect('clicked(bool)', self.selectMeshFolder)
     self.loadButton=qt.QPushButton("Load Data")
     self.loadButton.enabled=False
     self.loadButton.connect('clicked(bool)', self.onLoad)
+    self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
 
-    setupTab = qt.QWidget()
-    setupTabLayout = qt.QFormLayout(setupTab)
-    setupTabLayout.addRow(self.meshFolderButton)
-    setupTabLayout.addRow(self.loadButton)
+
+
+    inputfolderLayout.addRow(volumeInLabel)#,1,1)    
+    inputfolderLayout.addRow(self.LMText)#,1,2)
+    inputfolderLayout.addRow(self.LMbutton)#,1,3)
+    inputfolderLayout.addRow(self.loadButton)
+    #self.layout.addWidget(inbutton)
+    self.LMbutton.connect('clicked(bool)', self.selectMeshFolder)
+
 
     runTab = qt.QWidget()
     runTabLayout = qt.QFormLayout(runTab)
@@ -99,8 +122,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     button=qt.QPushButton(dispText)
     return textInLine, lineLabel, button
 
-
-  def meshFolderSelected(self):
+  def selectMeshFolder(self):
     self.mesh_folder=qt.QFileDialog().getExistingDirectory()
     self.meshText.setText(self.mesh_folder)
     try:
@@ -111,7 +133,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   def cleanup(self):
     pass
   def onLoad(self):
-    
     print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
 
 
