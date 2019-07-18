@@ -4,6 +4,8 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 
+import RunTabWidget
+
 #
 # Auto3dgm
 #
@@ -86,9 +88,11 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     self.setupRunTab(runTabLayout)
     self.setupOutTab(outTabLayout)
-    
+  
+  ### SETUP TAB WIDGETS AND BEHAVIORS ###
+
   def setupRunTab(self, runTabLayout):
-    self.singleStepGroupBox = qt.QGroupBox("Run Individual Steps")
+    self.singleStepGroupBox = qt.QGroupBox("Run individual steps")
     self.singleStepGroupBoxLayout = qt.QVBoxLayout()
     self.singleStepGroupBoxLayout.setSpacing(5)
     self.singleStepGroupBox.setLayout(self.singleStepGroupBoxLayout)
@@ -96,24 +100,42 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     self.subStepButton = qt.QPushButton("Subsample")
     self.subStepButton.toolTip = "Run subsample step of analysis, creating collections of subsampled points per mesh."
+    self.subStepButton.connect('clicked(bool)', self.subStepButtonOnLoad)
     self.singleStepGroupBoxLayout.addWidget(self.subStepButton)
 
     self.phase1StepButton = qt.QPushButton("Phase 1")
     self.phase1StepButton.toolTip = "Run the first analysis phase, aligning meshes based on low resolution subsampled points."
+    self.phase1StepButton.connect('clicked(bool)', self.phase1StepButtonOnLoad)
     self.singleStepGroupBoxLayout.addWidget(self.phase1StepButton)
 
     self.phase2StepButton = qt.QPushButton("Phase 2")
     self.phase2StepButton.toolTip = "Run the second analysis phase, aligning meshes based on high resolution subsampled points."
+    self.phase2StepButton.connect('clicked(bool)', self.phase2StepButtonOnLoad)
     self.singleStepGroupBoxLayout.addWidget(self.phase2StepButton)
 
-    self.allStepsButton = qt.QPushButton("Run All Steps")
+    self.allStepsButton = qt.QPushButton("Run all steps")
     self.allStepsButton.toolTip = "Run all possible analysis steps and phases."
+    self.allStepsButton.connect('clicked(bool)', self.allStepsButtonOnLoad)
     runTabLayout.addRow(self.allStepsButton)
 
     runTabLayout.setVerticalSpacing(15)
 
+  def subStepButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL002.1")
+
+  def phase1StepButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL002.2")
+
+  def phase2StepButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL002.2")
+
+  def allStepsButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL000.0")
+
+  ### OUTPUT TAB WIDGETS AND BEHAVIORS
+
   def setupOutTab(self, outTabLayout):
-    self.visGroupBox = qt.QGroupBox("Visualize Results")
+    self.visGroupBox = qt.QGroupBox("Visualize results")
     self.visGroupBoxLayout = qt.QVBoxLayout()
     self.visGroupBoxLayout.setSpacing(5)
     self.visGroupBox.setLayout(self.visGroupBoxLayout)
@@ -121,35 +143,59 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     self.visSubButton = qt.QPushButton("Subsample")
     self.visSubButton.toolTip = "Visualize collections of subsampled points per mesh."
+    self.visSubButton.connect('clicked(bool)', self.visSubButtonOnLoad)
     self.visGroupBoxLayout.addWidget(self.visSubButton) 
 
     self.visPhase1Button = qt.QPushButton("Phase 1")
     self.visPhase1Button.toolTip = "Visualize aligned meshes with alignment based on low resolution subsampled points."
+    self.visPhase1Button.connect('clicked(bool)', self.visPhase1ButtonOnLoad)
     self.visGroupBoxLayout.addWidget(self.visPhase1Button)
 
     self.visPhase2Button = qt.QPushButton("Phase 2")
     self.visPhase2Button.toolTip = "Visualize aligned meshes with alignment based on high resolution subsampled points."
+    self.visPhase2Button.connect('clicked(bool)', self.visPhase2ButtonOnLoad)
     self.visGroupBoxLayout.addWidget(self.visPhase2Button)
 
-    self.outGroupBox = qt.QGroupBox("Output Results")
+    self.outGroupBox = qt.QGroupBox("Output results")
     self.outGroupBoxLayout = qt.QVBoxLayout()
     self.outGroupBoxLayout.setSpacing(5)
     self.outGroupBox.setLayout(self.outGroupBoxLayout)
     outTabLayout.addRow(self.outGroupBox)
 
-    self.outPhase1Button = qt.QPushButton("Phase 1 Results to GPA")
+    self.outPhase1Button = qt.QPushButton("Phase 1 results to GPA")
     self.outPhase1Button.toolTip = "Output aligned mesh results (based on low resolution subsampled points) to GPA toolkit extension for PCA and other analysis."
+    self.outPhase1Button.connect('clicked(bool)', self.outPhase1ButtonOnLoad)
     self.outGroupBoxLayout.addWidget(self.outPhase1Button)
 
-    self.outPhase2Button = qt.QPushButton("Phase 2 Results to GPA")
+    self.outPhase2Button = qt.QPushButton("Phase 2 results to GPA")
     self.outPhase2Button.toolTip = "Output aligned mesh results (based on high resolution subsampled points)to GPA toolkit extension for PCA and other analysis."
+    self.outPhase2Button.connect('clicked(bool)', self.outPhase2ButtonOnLoad)
     self.outGroupBoxLayout.addWidget(self.outPhase2Button)
 
     self.outVisButton = qt.QPushButton("Visualization(s)")
     self.outVisButton.toolTip = "Output all visualizations produced."
+    self.outVisButton.connect('clicked(bool)', self.outVisButtonOnLoad)
     self.outGroupBoxLayout.addWidget(self.outVisButton)
 
     outTabLayout.setVerticalSpacing(15)
+
+  def visSubButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL003.3, maybe others")
+
+  def visPhase1ButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL003.3, AL003.4")
+
+  def visPhase2ButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL003.3, AL003.4")
+
+  def outPhase1ButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL003.1")
+
+  def outPhase2ButtonOnLoad(self):
+    print("Mocking a call to the Logic service AL003.1")
+
+  def outVisButtonOnLoad(self):
+    print("Mocking a call to the Logic service unnamed visualization output service")
 
   def textIn(self,label, dispText, toolTip):
     """ a function to set up the appearnce of a QlineEdit widget.
@@ -177,6 +223,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def cleanup(self):
     pass
+
   def onLoad(self):
     
     print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
