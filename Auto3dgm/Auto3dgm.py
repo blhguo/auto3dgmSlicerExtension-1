@@ -54,6 +54,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     # parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
 
     # Add vertical spacer
+    # Create Tabs
     # self.layout.addStretch(1)
 
     tabsWidget = qt.QTabWidget()
@@ -69,6 +70,73 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     tabsWidget.addTab(runTab, "Run")
     tabsWidget.addTab(outTab, "Visualize/Output")
     self.layout.addWidget(tabsWidget)
+
+    self.setupRunTab(runTabLayout)
+    self.setupOutTab(outTabLayout)
+    
+  def setupRunTab(self, runTabLayout):
+    self.singleStepGroupBox = qt.QGroupBox("Run Individual Steps")
+    self.singleStepGroupBoxLayout = qt.QVBoxLayout()
+    self.singleStepGroupBoxLayout.setSpacing(5)
+    self.singleStepGroupBox.setLayout(self.singleStepGroupBoxLayout)
+    runTabLayout.addRow(self.singleStepGroupBox)
+
+    self.subStepButton = qt.QPushButton("Subsample")
+    self.subStepButton.toolTip = "Run subsample step of analysis, creating collections of subsampled points per mesh."
+    self.singleStepGroupBoxLayout.addWidget(self.subStepButton)
+
+    self.phase1StepButton = qt.QPushButton("Phase 1")
+    self.phase1StepButton.toolTip = "Run the first analysis phase, aligning meshes based on low resolution subsampled points."
+    self.singleStepGroupBoxLayout.addWidget(self.phase1StepButton)
+
+    self.phase2StepButton = qt.QPushButton("Phase 2")
+    self.phase2StepButton.toolTip = "Run the second analysis phase, aligning meshes based on high resolution subsampled points."
+    self.singleStepGroupBoxLayout.addWidget(self.phase2StepButton)
+
+    self.allStepsButton = qt.QPushButton("Run All Steps")
+    self.allStepsButton.toolTip = "Run all possible analysis steps and phases."
+    runTabLayout.addRow(self.allStepsButton)
+
+    runTabLayout.setVerticalSpacing(15)
+
+  def setupOutTab(self, outTabLayout):
+    self.visGroupBox = qt.QGroupBox("Visualize Results")
+    self.visGroupBoxLayout = qt.QVBoxLayout()
+    self.visGroupBoxLayout.setSpacing(5)
+    self.visGroupBox.setLayout(self.visGroupBoxLayout)
+    outTabLayout.addRow(self.visGroupBox)
+
+    self.visSubButton = qt.QPushButton("Subsample")
+    self.visSubButton.toolTip = "Visualize collections of subsampled points per mesh."
+    self.visGroupBoxLayout.addWidget(self.visSubButton) 
+
+    self.visPhase1Button = qt.QPushButton("Phase 1")
+    self.visPhase1Button.toolTip = "Visualize aligned meshes with alignment based on low resolution subsampled points."
+    self.visGroupBoxLayout.addWidget(self.visPhase1Button)
+
+    self.visPhase2Button = qt.QPushButton("Phase 2")
+    self.visPhase2Button.toolTip = "Visualize aligned meshes with alignment based on high resolution subsampled points."
+    self.visGroupBoxLayout.addWidget(self.visPhase2Button)
+
+    self.outGroupBox = qt.QGroupBox("Output Results")
+    self.outGroupBoxLayout = qt.QVBoxLayout()
+    self.outGroupBoxLayout.setSpacing(5)
+    self.outGroupBox.setLayout(self.outGroupBoxLayout)
+    outTabLayout.addRow(self.outGroupBox)
+
+    self.outPhase1Button = qt.QPushButton("Phase 1 Results to GPA")
+    self.outPhase1Button.toolTip = "Output aligned mesh results (based on low resolution subsampled points) to GPA toolkit extension for PCA and other analysis."
+    self.outGroupBoxLayout.addWidget(self.outPhase1Button)
+
+    self.outPhase2Button = qt.QPushButton("Phase 2 Results to GPA")
+    self.outPhase2Button.toolTip = "Output aligned mesh results (based on high resolution subsampled points)to GPA toolkit extension for PCA and other analysis."
+    self.outGroupBoxLayout.addWidget(self.outPhase2Button)
+
+    self.outVisButton = qt.QPushButton("Visualization(s)")
+    self.outVisButton.toolTip = "Output all visualizations produced."
+    self.outGroupBoxLayout.addWidget(self.outVisButton)
+
+    outTabLayout.setVerticalSpacing(15)
 
   def cleanup(self):
     pass
