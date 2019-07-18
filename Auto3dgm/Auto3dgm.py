@@ -60,18 +60,37 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     # self.layout.addStretch(1)
 
     tabsWidget = qt.QTabWidget()
+    setupTab = qt.QWidget()
+    setupTabLayout = qt.QFormLayout(setupTab)
+    
+    inputfolderWidget=ctk.ctkCollapsibleButton()
+    inputfolderLayout=qt.QFormLayout(inputfolderWidget)
+    inputfolderWidget.text = "Input and Output Folder"
+    setupTabLayout.addRow(inputfolderWidget)
 
-    self.meshText, volumeInLabel, self.meshFolderButton=self.textIn('Input folder','Choose input folder', '')
 
-    self.meshFolderButton.connect('clicked(bool)', self.meshFolderSelected)
+
+    self.meshInputText, volumeInLabel, self.inputFolderButton=self.textIn('Input folder','Choose input folder', '')
+
+    self.inputFolderButton.connect('clicked(bool)', self.selectMeshFolder)
     self.loadButton=qt.QPushButton("Load Data")
     self.loadButton.enabled=False
     self.loadButton.connect('clicked(bool)', self.onLoad)
+    self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
 
-    setupTab = qt.QWidget()
-    setupTabLayout = qt.QFormLayout(setupTab)
-    setupTabLayout.addRow(self.meshFolderButton)
-    setupTabLayout.addRow(self.loadButton)
+    self.meshOutputText, volumeOutLabel, self.outputFolderButton=self.textIn('Output folder','Choose output folder', '')
+    self.outputFolderButton.connect('clicked(bool)', self.selectOutputFolder)
+
+
+    inputfolderLayout.addRow(volumeInLabel)#,1,1)    
+    inputfolderLayout.addRow(self.meshInputText)#,1,2)
+    inputfolderLayout.addRow(self.inputFolderButton)#,1,3)
+    inputfolderLayout.addRow(self.loadButton)
+    inputfolderLayout.addRow(self.meshOutputText)
+    inputfolderLayout.addRow(self.outputFolderButton)
+    #self.layout.addWidget(inbutton)
+    self.LMbutton.connect('clicked(bool)', self.selectMeshFolder)
+
 
     runTab = qt.QWidget()
     runTabLayout = qt.QFormLayout(runTab)
@@ -99,19 +118,21 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     button=qt.QPushButton(dispText)
     return textInLine, lineLabel, button
 
-
-  def meshFolderSelected(self):
+  def selectMeshFolder(self):
     self.mesh_folder=qt.QFileDialog().getExistingDirectory()
-    self.meshText.setText(self.mesh_folder)
+    self.meshInputText.setText(self.mesh_folder)
     try:
       self.loadButton.enabled=bool(self.mesh_folder)
     except AttributeError:
       self.loadButton.enable=False
 
+  def selectOutputFolder(self):
+    self.outputfolder=qt.QFileDialog().getExistingDirectory()
+    self.meshOutputText.setText(self.outputfolder)
+
   def cleanup(self):
     pass
   def onLoad(self):
-    
     print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
 
 
