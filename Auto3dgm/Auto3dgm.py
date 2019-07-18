@@ -41,6 +41,9 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
+    #Widget variables
+    self.mesh_folder=None
+
     # Instantiate and connect widgets ...
 
     #
@@ -59,8 +62,18 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     tabsWidget = qt.QTabWidget()
 
+    self.meshText, volumeInLabel, self.meshFolderButton=self.textIn('Input folder','Choose input folder', '')
+
+    self.meshFolderButton.connect('clicked(bool)', self.meshFolderSelected)
+    self.loadButton=qt.QPushButton("Load Data")
+    self.loadButton.enabled=False
+    self.loadButton.connect('clicked(bool)', self.onLoad)
+
     setupTab = qt.QWidget()
     setupTabLayout = qt.QFormLayout(setupTab)
+    setupTabLayout.addRow(self.meshFolderButton)
+    setupTabLayout.addRow(self.loadButton)
+
     runTab = qt.QWidget()
     runTabLayout = qt.QFormLayout(runTab)
     outTab = qt.QWidget()
@@ -138,8 +151,36 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     outTabLayout.setVerticalSpacing(15)
 
+  def textIn(self,label, dispText, toolTip):
+    """ a function to set up the appearnce of a QlineEdit widget.
+    the widget is returned.
+    """
+    # set up text line
+    textInLine=qt.QLineEdit();
+    textInLine.setText(dispText)
+    textInLine.toolTip = toolTip
+    # set up label
+    lineLabel=qt.QLabel()
+    lineLabel.setText(label)
+
+    # make clickable button
+    button=qt.QPushButton(dispText)
+    return textInLine, lineLabel, button
+
+  def meshFolderSelected(self):
+    self.mesh_folder=qt.QFileDialog().getExistingDirectory()
+    self.meshText.setText(self.mesh_folder)
+    try:
+      self.loadButton.enabled=bool(self.mesh_folder)
+    except AttributeError:
+      self.loadButton.enable=False
+
   def cleanup(self):
     pass
+  def onLoad(self):
+    
+    print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
+
 
 #
 # Auto3dgmLogic
