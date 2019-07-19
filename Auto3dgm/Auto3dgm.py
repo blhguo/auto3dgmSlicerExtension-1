@@ -66,33 +66,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     setupTab = qt.QWidget()
     setupTabLayout = qt.QFormLayout(setupTab)
     
-    inputfolderWidget=ctk.ctkCollapsibleButton()
-    inputfolderLayout=qt.QFormLayout(inputfolderWidget)
-    inputfolderWidget.text = "Input and Output Folder"
-    setupTabLayout.addRow(inputfolderWidget)
-
-
-
-    self.meshInputText, volumeInLabel, self.inputFolderButton=self.textIn('Input folder','Choose input folder', '')
-
-    self.inputFolderButton.connect('clicked(bool)', self.selectMeshFolder)
-    self.loadButton=qt.QPushButton("Load Data")
-    self.loadButton.enabled=False
-    self.loadButton.connect('clicked(bool)', self.onLoad)
-    self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
-
-    self.meshOutputText, volumeOutLabel, self.outputFolderButton=self.textIn('Output folder','Choose output folder', '')
-    self.outputFolderButton.connect('clicked(bool)', self.selectOutputFolder)
-
-
-    inputfolderLayout.addRow(volumeInLabel)#,1,1)    
-    inputfolderLayout.addRow(self.meshInputText)#,1,2)
-    inputfolderLayout.addRow(self.inputFolderButton)#,1,3)
-    inputfolderLayout.addRow(self.loadButton)
-    inputfolderLayout.addRow(self.meshOutputText)
-    inputfolderLayout.addRow(self.outputFolderButton)
-    #self.layout.addWidget(inbutton)
-    self.LMbutton.connect('clicked(bool)', self.selectMeshFolder)
+    
 
 
     runTab = qt.QWidget()
@@ -108,7 +82,101 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.setupRunTab(runTabLayout)
     self.setupOutTab(outTabLayout)
   
-  ### SETUP TAB WIDGETS AND BEHAVIORS ###
+    ### SETUP TAB WIDGETS AND BEHAVIORS ###
+
+    # Input and Output Folder section
+
+    inputfolderWidget=ctk.ctkCollapsibleButton()
+    inputfolderLayout=qt.QFormLayout(inputfolderWidget)
+    inputfolderWidget.text = "Input and output folder"
+    setupTabLayout.addRow(inputfolderWidget)
+
+    self.meshInputText, volumeInLabel, self.inputFolderButton=self.textIn('Input folder','Choose input folder', '')
+
+    self.inputFolderButton.connect('clicked(bool)', self.selectMeshFolder)
+    self.loadButton=qt.QPushButton("Load Data")
+    self.loadButton.enabled=False
+    self.loadButton.connect('clicked(bool)', self.onLoad)
+    self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
+
+    self.meshOutputText, volumeOutLabel, self.outputFolderButton=self.textIn('Output folder','Choose output folder', '')
+    self.outputFolderButton.connect('clicked(bool)', self.selectOutputFolder)
+
+    inputfolderLayout.addRow(volumeInLabel)#,1,1)    
+    inputfolderLayout.addRow(self.meshInputText)#,1,2)
+    inputfolderLayout.addRow(self.inputFolderButton)#,1,3)
+    inputfolderLayout.addRow(self.loadButton)
+    inputfolderLayout.addRow(self.meshOutputText)
+    inputfolderLayout.addRow(self.outputFolderButton)
+    #self.layout.addWidget(inbutton)
+    self.LMbutton.connect('clicked(bool)', self.selectMeshFolder)
+
+    self.parameterWidget = ctk.ctkCollapsibleButton()
+    self.parameterLayout = qt.QFormLayout(self.parameterWidget)
+    self.parameterWidget.text = "Parameters"
+    setupTabLayout.addRow(self.parameterWidget)
+
+    self.maxIterSliderWidget = ctk.ctkSliderWidget()
+    self.maxIterSliderWidget.setDecimals(0)
+    self.maxIterSliderWidget.singleStep = 1
+    self.maxIterSliderWidget.minimum = 1
+    self.maxIterSliderWidget.maximum = 5000
+    self.maxIterSliderWidget.value = 1000
+    self.maxIterSliderWidget.setToolTip("Maximum possible number of iterations for pairwise alignment optimization.")
+    self.parameterLayout.addRow("Maximum iterations", self.maxIterSliderWidget)
+
+    self.reflectionCheckBox = qt.QCheckBox()
+    self.reflectionCheckBox.checked = 0
+    self.reflectionCheckBox.setToolTip("Whether meshes can be reflected/mirrored to achieve more optimal alignments.")
+    self.parameterLayout.addRow("Allow reflection", self.reflectionCheckBox)
+
+    self.subsampleComboBox = qt.QComboBox()
+    self.subsampleComboBox.addItem("FPS (Furthest Point Sampling)")
+    self.subsampleComboBox.addItem("GPL (Gaussian Process Landmarks)")
+    self.subsampleComboBox.addItem("FPS/GPL Hybrid")
+    self.parameterLayout.addRow("Subsampling", self.subsampleComboBox)
+
+    self.fpsSeed = qt.QSpinBox()
+    self.fpsSeed.setSpecialValueText('-')
+    self.parameterLayout.addRow("Optional FPS Seed", self.fpsSeed)
+
+    self.hybridPoints = qt.QSpinBox()
+    self.hybridPoints.setSpecialValueText('-')
+    self.hybridPoints.setMinimum(1)
+    self.hybridPoints.setMaximum(1000)
+    self.parameterLayout.addRow("Hybrid GPL Points", self.hybridPoints)
+
+    self.phaseChoiceComboBox = qt.QComboBox()
+    self.phaseChoiceComboBox.addItem("1 (Single Alignment Pass)")
+    self.phaseChoiceComboBox.addItem("2 (Double Alignment Pass)")
+    self.phaseChoiceComboBox.setCurrentIndex(1)
+    self.parameterLayout.addRow("Analysis phases", self.phaseChoiceComboBox)
+
+    self.phase1PointNumber = qt.QSpinBox()
+    self.phase1PointNumber.setMinimum(1)
+    self.phase1PointNumber.setMaximum(100000)
+    self.phase1PointNumber.setValue(200)
+    self.parameterLayout.addRow("Phase 1 Points", self.phase1PointNumber)
+
+    self.phase2PointNumber = qt.QSpinBox()
+    self.phase2PointNumber.setMinimum(1)
+    self.phase2PointNumber.setMaximum(1000000)
+    self.phase2PointNumber.setValue(1000)
+    self.parameterLayout.addRow("Phase 2 Points", self.phase2PointNumber)
+
+    self.processingComboBox = qt.QComboBox()
+    self.processingComboBox.addItem("Local Single CPU Core")
+    self.processingComboBox.addItem("Local Multiple CPU Cores")
+    self.processingComboBox.addItem("Cluster/Grid")
+    self.parameterLayout.addRow("Processing", self.processingComboBox)
+
+
+
+    
+    
+    
+
+  ### RUN TAB WIDGETS AND BEHAVIORS ###
 
   def setupRunTab(self, runTabLayout):
     self.singleStepGroupBox = qt.QGroupBox("Run individual steps")
