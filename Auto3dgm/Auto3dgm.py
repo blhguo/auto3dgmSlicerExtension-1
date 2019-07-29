@@ -49,6 +49,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     #Widget variables
     self.mesh_folder=None
+    self.visualizationmesh_folder=None
 
     # Instantiate and connect widgets ...
 
@@ -226,6 +227,25 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
   def setupOutTab(self, outTabLayout):
+
+    visualizationinputfolderWidget=ctk.ctkCollapsibleButton()
+    visualizationinputfolderLayout=qt.QFormLayout(visualizationinputfolderWidget)
+    visualizationinputfolderWidget.text = ""
+    outTabLayout.addRow(visualizationinputfolderWidget)
+
+    self.visualizationmeshInputText, visualizationvolumeInLabel, self.visualizationinputFolderButton=self.textIn('Input folder','Choose input folder', '')
+
+    visualizationinputfolderLayout.addRow(visualizationvolumeInLabel)#,1,1)    
+    visualizationinputfolderLayout.addRow(self.visualizationmeshInputText)#,1,2)
+    visualizationinputfolderLayout.addRow(self.visualizationinputFolderButton)#,1,3)
+
+    self.visualizationinputFolderButton.connect('clicked(bool)', self.visualizationselectMeshFolder)
+    #self.loadButton=qt.QPushButton("Load Data")
+    #self.loadButton.enabled=False
+    #self.loadButton.connect('clicked(bool)', self.onLoad)
+    #self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
+
+
     self.visGroupBox = qt.QGroupBox("Visualize results")
     self.visGroupBoxLayout = qt.QVBoxLayout()
     self.visGroupBoxLayout.setSpacing(5)
@@ -312,6 +332,13 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     except AttributeError:
       self.loadButton.enable=False
 
+  def visualizationselectMeshFolder(self):
+    self.visualizationmesh_folder=qt.QFileDialog().getExistingDirectory()
+    self.visualizationmeshInputText.setText(self.visualizationmesh_folder)
+    MST=slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/MSTmatrix.csv/MSTmatrix.csv")
+    Distancematrix=slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/distancematrix.csv")
+    print(self.visualizationmesh_folder)
+
   def selectOutputFolder(self):
     self.outputfolder=qt.QFileDialog().getExistingDirectory()
     self.meshOutputText.setText(self.outputfolder)
@@ -321,7 +348,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def onLoad(self):
     print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
-    dataset=Auto3dgmLogic.createDataset(self.mesh_folder)
+    self.dataset=Auto3dgmLogic.createDataset(self.mesh_folder)
 
 
 #
