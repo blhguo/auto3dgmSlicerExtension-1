@@ -46,6 +46,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     #Widget variables
     self.mesh_folder=None
     self.visualizationmesh_folder=None
+    self.ssresults=None
 
     # Instantiate and connect widgets ...
 
@@ -210,6 +211,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def subStepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.1")
+    self.ssresults=Auto3dgmLogic.subsample(list_of_pts=[self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.dataset.datasets[0])
 
   def phase1StepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.2")
@@ -343,7 +345,10 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   def onLoad(self):
     print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
     self.dataset=Auto3dgmLogic.createDataset(self.mesh_folder)
-
+    try:
+      self.subStepButton.enabled=bool(self.mesh_folder)
+    except AttributeError:
+      self.subStepButton.enable=False
 
 #
 # Auto3dgmLogic
@@ -415,6 +420,11 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     dataset=DatasetFactory.ds_from_dir(inputdirectory)
     return dataset
 
+  def subsample(list_of_pts, meshes):
+    ss = Subsample(pointNumber=list_of_pts, meshes=meshes)
+    #print(list_of_pts)
+    ss_res = ss.ret
+    return(ss_res)
 
 class Auto3dgmTest(ScriptedLoadableModuleTest):
   """
