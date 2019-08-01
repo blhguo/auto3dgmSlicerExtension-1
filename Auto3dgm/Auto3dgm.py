@@ -3,6 +3,15 @@ import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
+import sys
+sys.path.append('/home/safari/Desktop/SlicerJuly29//slicerextension/auto3dgmslicerextension/Auto3dgm/')
+from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
+from auto3dgm_nazar.mesh.subsample import Subsample
+import numpy as np
+
+#import pandas as pd
+
+
 
 #from auto3dgm.dataset.datasetfactory import DatasetFactory
 #from auto3dgm.mesh.subsample import Subsample
@@ -45,8 +54,12 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     #Widget variables
     self.mesh_folder=None
+    self.outputfolder=None
     self.visualizationmesh_folder=None
     self.ssresults=None
+    self.lowressampledpoints=None
+    self.highressampledpoints=None
+    self.outputFolderPrepared=False
 
     # Instantiate and connect widgets ...
 
@@ -211,8 +224,10 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def subStepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.1")
+    self.lowressampledpoints=self.phase1PointNumber.value
+    self.highressampledpoints=self.phase2PointNumber.value
     self.ssresults=Auto3dgmLogic.subsample(list_of_pts=[self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.dataset.datasets[0])
-
+    print(self.ssresults)
   def phase1StepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.2")
 
@@ -297,9 +312,25 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def outPhase1ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
+    if self.outputFolderPrepared==False:
+      self.prepareOutputFolder()
+    for key in self.ssresults[self.lowressampledpoints]["output"]["output"]:
+        temp=key.split('/')
+        t=len(temp)-1
+        filename=temp[t].split('.')[0]
+        cfilename=self.outputfolder+"/lowres/"+filename
+        Auto3dgmLogic.saveNumpyArrayToCsv(self.ssresults[self.lowressampledpoints]["output"]["output"][key].vertices,cfilename)
 
   def outPhase2ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
+    if self.outputFolderPrepared==False:
+      self.prepareOutputFolder()
+    for key in self.ssresults[self.highressampledpoints]["output"]["output"]:
+        temp=key.split('/')
+        t=len(temp)-1
+        filename=temp[t].split('.')[0]
+        cfilename=self.outputfolder+"/highres/"+filename
+        Auto3dgmLogic.saveNumpyArrayToCsv(self.ssresults[self.highressampledpoints]["output"]["output"][key].vertices,cfilename)
 
   def outVisButtonOnLoad(self):
     print("Mocking a call to the Logic service unnamed visualization output service")
@@ -349,6 +380,14 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
       self.subStepButton.enabled=bool(self.mesh_folder)
     except AttributeError:
       self.subStepButton.enable=False
+
+
+  def prepareOutputFolder(self):
+    if (not os.path.exists(self.outputfolder+"/lowres/")):
+      os.mkdir(self.outputfolder+"/lowres/")
+    if (not os.path.exists(self.outputfolder+"/highres/")):
+      os.mkdir(self.outputfolder+"/highres/")
+    self.outputFolderPrepared=True
 
 #
 # Auto3dgmLogic
@@ -422,9 +461,16 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
 
   def subsample(list_of_pts, meshes):
     ss = Subsample(pointNumber=list_of_pts, meshes=meshes)
-    #print(list_of_pts)
+    print(list_of_pts)
     ss_res = ss.ret
     return(ss_res)
+
+  def saveNumpyArrayToCsv(array,filename):
+    print(array)
+    print(filename)
+    np.savetxt(filename+".csv",array,delimiter=",",fmt="%s")
+    print(str(array) + " saved to file " + str(filename))
+
 
 class Auto3dgmTest(ScriptedLoadableModuleTest):
   """
