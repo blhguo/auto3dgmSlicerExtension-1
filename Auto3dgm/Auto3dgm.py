@@ -65,6 +65,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.outputFolderPrepared=False
     self.phase1corr=None
     self.phase2corr=None
+    self.aligned_meshes=[]
 
     # Instantiate and connect widgets ...
 
@@ -404,6 +405,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.outputFolderPrepared=True
 
   def onImportAligned(self):
+    Auto3dgmLogic.alignOriginalMeshes(self)
     Auto3dgmLogic.saveAlignedMeshesForViewer(self)
     print("Meshes exported")
 
@@ -503,9 +505,8 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     return(corr)
 
   def alignOriginalMeshes(self, phase=2):
-    #pass
     meshes=self.dataset.datasets[0]
-    aligned_meshes=[]
+    self.aligned_meshes=[]
     if phase==1:
       corr=self.phase1corr
     else:
@@ -513,15 +514,13 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     for t in range(len(meshes)):
       name=meshes[t].name
       R=corr.globalized_alignment['r'][t]
-      V=np.transpose(np.matmul(R,transpose(meshes[t].vertices)))
-      aligned_mesh=MeshFactory.mesh_from_data(vertices=V,name=name)
-      aligned_meshes.append(aligned_mesh)
-    #return(True)
-    return(aligned_meshes)
+      aligned_mesh=meshes[t]
+      aligned_mesh.rotate(arr=R)
+      self.aligned_meshes.append(aligned_mesh)
 
   def saveAlignedMeshesForViewer(self):
     outputdir=self.outputfolder+'/aligned/'
-    for mesh in self.dataset.datasets[0]:
+    for mesh in self.aligned_meshes:
       print(outputdir)
       print(mesh.name)
       MeshExport.writeToFile(outputdir,mesh,format='obj')
