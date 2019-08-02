@@ -514,8 +514,11 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     for t in range(len(meshes)):
       name=meshes[t].name
       R=corr.globalized_alignment['r'][t]
-      aligned_mesh=meshes[t]
-      aligned_mesh.rotate(arr=R)
+      mesh=meshes[t]
+      #aligned_mesh.rotate(arr=R)
+      V=np.transpose(np.matmul(R,np.transpose(mesh.vertices)))
+      F=mesh.faces
+      aligned_mesh=MeshFactory.mesh_from_data(vertices=V,faces=F,name=name)
       self.aligned_meshes.append(aligned_mesh)
 
   def saveAlignedMeshesForViewer(self):
