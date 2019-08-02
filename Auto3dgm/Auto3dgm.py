@@ -3,13 +3,21 @@ import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
-
-# Ugly workaround for loading the auto3dgm python module:
 import sys
-cwd=os.getcwd()
-sys.path.append(cwd+'/Auto3dgm/auto3dgm/')
-from auto3dgm.dataset.datasetfactory import DatasetFactory
-from auto3dgm.mesh.subsample import Subsample
+sys.path.append('/home/safari/Desktop/SlicerJuly29/slicerextension/auto3dgmslicerextension/Auto3dgm/')
+from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
+from auto3dgm_nazar.mesh.subsample import Subsample
+from auto3dgm_nazar.mesh.meshfactory import MeshFactory
+from auto3dgm_nazar.mesh.meshexport import MeshExport
+import auto3dgm_nazar
+import numpy as np
+
+#import pandas as pd
+
+
+
+#from auto3dgm.dataset.datasetfactory import DatasetFactory
+#from auto3dgm.mesh.subsample import Subsample
 #
 # Auto3dgm
 #
@@ -46,11 +54,18 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
-
+    self.datasetCollection=None
     #Widget variables
     self.mesh_folder=None
+    self.outputfolder=None
     self.visualizationmesh_folder=None
     self.ssresults=None
+    self.lowressampledpoints=None
+    self.highressampledpoints=None
+    self.outputFolderPrepared=False
+    self.phase1corr=None
+    self.phase2corr=None
+    self.aligned_meshes=[]
 
     # Instantiate and connect widgets ...
 
@@ -161,13 +176,13 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.phase1PointNumber = qt.QSpinBox()
     self.phase1PointNumber.setMinimum(1)
     self.phase1PointNumber.setMaximum(100000)
-    self.phase1PointNumber.setValue(200)
+    self.phase1PointNumber.setValue(5)
     self.parameterLayout.addRow("Phase 1 Points", self.phase1PointNumber)
 
     self.phase2PointNumber = qt.QSpinBox()
     self.phase2PointNumber.setMinimum(1)
     self.phase2PointNumber.setMaximum(1000000)
-    self.phase2PointNumber.setValue(1000)
+    self.phase2PointNumber.setValue(10)
     self.parameterLayout.addRow("Phase 2 Points", self.phase2PointNumber)
 
     self.processingComboBox = qt.QComboBox()
@@ -194,7 +209,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.subStepButton = qt.QPushButton("Subsample")
     self.subStepButton.toolTip = "Run subsample step of analysis, creating collections of subsampled points per mesh."
     self.subStepButton.connect('clicked(bool)', self.subStepButtonOnLoad)
-    self.subStepButton.enabled=False
     self.singleStepGroupBoxLayout.addWidget(self.subStepButton)
 
     self.phase1StepButton = qt.QPushButton("Phase 1")
@@ -214,14 +228,23 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     runTabLayout.setVerticalSpacing(15)
 
+  #TODO: Add these to the datasetcollection
   def subStepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.1")
-    self.ssresults=Auto3dgmLogic.subsample(list_of_pts=[self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.dataset.datasets[0])
+    self.lowressampledpoints=self.phase1PointNumber.value
+    self.highressampledpoints=self.phase2PointNumber.value
+    Auto3dgmLogic.subsample(self,list_of_pts=[self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.dataset.datasets[0])
+    print("Dataset collection updated")
+    print(self.datasetCollection.datasets)
 
   def phase1StepButtonOnLoad(self):
+    corr=Auto3dgmLogic.correspondence(self, phase=1)
+    self.datasetCollection.add_analysis_set(corr,"Phase 1")
     print("Mocking a call to the Logic service AL002.2")
 
   def phase2StepButtonOnLoad(self):
+    corr=Auto3dgmLogic.correspondence(self, phase=2)
+    self.datasetCollection.add_analysis_set(corr,"Phase 2")
     print("Mocking a call to the Logic service AL002.2")
 
   def allStepsButtonOnLoad(self):
@@ -230,7 +253,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
   def setupOutTab(self, outTabLayout):
-
     visualizationinputfolderWidget=ctk.ctkCollapsibleButton()
     visualizationinputfolderLayout=qt.QFormLayout(visualizationinputfolderWidget)
     visualizationinputfolderWidget.text = ""
@@ -247,7 +269,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     #self.loadButton.enabled=False
     #self.loadButton.connect('clicked(bool)', self.onLoad)
     #self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
-
 
     self.visGroupBox = qt.QGroupBox("Visualize results")
     self.visGroupBoxLayout = qt.QVBoxLayout()
@@ -291,6 +312,11 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.outVisButton.connect('clicked(bool)', self.outVisButtonOnLoad)
     self.outGroupBoxLayout.addWidget(self.outVisButton)
 
+    self.importAlignedButton = qt.QPushButton("Import aligned meshes")
+    self.importAlignedButton.toolTip = "Imports aligned meshes to be plugged to the webviewer"
+    self.importAlignedButton.connect('clicked(bool)', self.onImportAligned)
+    self.outGroupBoxLayout.addWidget(self.importAlignedButton)
+
     outTabLayout.setVerticalSpacing(15)
 
   def visSubButtonOnLoad(self):
@@ -304,9 +330,25 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def outPhase1ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
+    if self.outputFolderPrepared==False:
+      self.prepareOutputFolder()
+    for key in self.ssresults[self.lowressampledpoints]["output"]["output"]:
+        #temp=key.split('/')
+        #t=len(temp)-1
+        #filename=temp[t].split('.')[0]
+        cfilename=self.outputfolder+"/lowres/"+key
+        Auto3dgmLogic.saveNumpyArrayToCsv(self.ssresults[self.lowressampledpoints]["output"]["output"][key].vertices,cfilename)
 
   def outPhase2ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
+    if self.outputFolderPrepared==False:
+      self.prepareOutputFolder()
+    for key in self.ssresults[self.highressampledpoints]["output"]["output"]:
+        #temp=key.split('/')
+        #t=len(temp)-1
+        #filename=temp[t].split('.')[0]
+        cfilename=self.outputfolder+"/highres/"+key
+        Auto3dgmLogic.saveNumpyArrayToCsv(self.ssresults[self.highressampledpoints]["output"]["output"][key].vertices,cfilename)
 
   def outVisButtonOnLoad(self):
     print("Mocking a call to the Logic service unnamed visualization output service")
@@ -338,8 +380,8 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   def visualizationselectMeshFolder(self):
     self.visualizationmesh_folder=qt.QFileDialog().getExistingDirectory()
     self.visualizationmeshInputText.setText(self.visualizationmesh_folder)
-    slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/MSTmatrix.csv")
-    slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/distancematrix.csv")
+    MST=slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/MSTmatrix.csv/MSTmatrix.csv")
+    Distancematrix=slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/distancematrix.csv")
     print(self.visualizationmesh_folder)
 
   def selectOutputFolder(self):
@@ -350,13 +392,28 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     pass
 
   def onLoad(self):
-    print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
+    #print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
+    self.datasetCollection=Auto3dgmLogic.createDatasetCollection("original",Auto3dgmLogic.createDataset(self.mesh_folder))
     self.dataset=Auto3dgmLogic.createDataset(self.mesh_folder)
     try:
       self.subStepButton.enabled=bool(self.mesh_folder)
     except AttributeError:
       self.subStepButton.enable=False
 
+
+  def prepareOutputFolder(self):
+    if (not os.path.exists(self.outputfolder+"/lowres/")):
+      os.mkdir(self.outputfolder+"/lowres/")
+    if (not os.path.exists(self.outputfolder+"/highres/")):
+      os.mkdir(self.outputfolder+"/highres/")
+    if (not os.path.exists(self.outputfolder+"/aligned/")):
+      os.mkdir(self.outputfolder+"/aligned/")
+    self.outputFolderPrepared=True
+
+  def onImportAligned(self):
+    Auto3dgmLogic.alignOriginalMeshes(self)
+    Auto3dgmLogic.saveAlignedMeshesForViewer(self)
+    print("Meshes exported")
 
 #
 # Auto3dgmLogic
@@ -428,22 +485,90 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     dataset=DatasetFactory.ds_from_dir(inputdirectory)
     return dataset
 
+  def createDatasetCollection(dataset,name):
+    datasetCollection=auto3dgm_nazar.dataset.datasetcollection.DatasetCollection(datasets=[dataset],dataset_names=[name])
+    return datasetCollection
 
-
-
-  # Logic service function AL002.1 Subsample
-
-  # In: List of points, possibly just one
-  # list of meshes
-
-
-  def subsample(list_of_pts, meshes):
+  def subsample(self,list_of_pts, meshes):
     ss = Subsample(pointNumber=list_of_pts, meshes=meshes)
+    for point in list_of_pts:
+      names=[]
+      meshes=[]
+      for key in ss.ret[point]['output']['output']:
+        #namelist=key.split('/')
+        #name=namelist[len(namelist)-1].split('.')[0]
+        mesh=ss.ret[10]['output']['output'][key]
+        #names.append(key)
+        meshes.append(mesh)
+      dataset={}
+      dataset[point]=meshes
+      self.datasetCollection.add_dataset(dataset,point)
     #print(list_of_pts)
-    ss_res = ss.ret
-    return(ss_res)
-   
+    #ss_res = ss.ret
+    #return(ss_res)
 
+  def saveNumpyArrayToCsv(array,filename):
+    print(array)
+    print(filename)
+    np.savetxt(filename+".csv",array,delimiter=",",fmt="%s")
+    print(str(array) + " saved to file " + str(filename))
+
+  def correspondence(self, phase=1):
+    if phase==1:
+      npoints=self.lowressampledpoints
+    else:
+      npoints=self.highressampledpoints
+    #meshes = []
+    meshes=self.datasetCollection.datasets[npoints][npoints]
+    #for name, mesh in self.ssresults[npoints]['output']['output'].items():
+    #  mesh.name = name
+    #  meshes.append(mesh)
+    corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes)
+    print("Correspondence compute for Phase " + str(phase))
+    return(corr)
+
+  def correspondenceOLD(self, phase=1):
+    if phase==1:
+      npoints=self.highressampledpoints
+    else:
+      npoints=self.lowressampledpoints
+    meshes = []
+    for name, mesh in self.ssresults[npoints]['output']['output'].items():
+      mesh.name = name
+      meshes.append(mesh)
+    corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes)
+    print("Correspondence compute for Phase " + str(phase))
+    return(corr)
+
+  def alignOriginalMeshes(self, phase=2):
+    if 'Phase 2' in self.datasetCollection.analysis_sets:
+      corr=self.datasetCollection.analysis_sets['Phase 2']
+    elif 'Phase 1' in self.datasetCollection.analysis_sets:
+      corr=self.datasetCollection.analysis_sets['Phase 1']
+      print("Phase 2 results do not exist, computing with Phase 1")
+    else:
+      print("No alignment has been computed")
+      return(0)
+    meshes=self.dataset.datasets[0]
+    self.aligned_meshes=[]
+    for t in range(len(meshes)):
+      #name=meshes[t].name
+      R=corr.globalized_alignment['r'][t]
+      aligned_mesh=meshes[t]
+      aligned_mesh.rotate(arr=R)
+      #V=np.transpose(np.matmul(R,np.transpose(mesh.vertices)))
+      #F=mesh.faces
+      #aligned_mesh=MeshFactory.mesh_from_data(vertices=V,faces=F,name=name)
+      self.aligned_meshes.append(aligned_mesh)
+
+  def saveAlignedMeshesForViewer(self):
+    outputdir=self.outputfolder+'/aligned/'
+    for mesh in self.aligned_meshes:
+      print(outputdir)
+      print(mesh.name)
+      MeshExport.writeToFile(outputdir,mesh,format='obj')
+      
+  
 
 class Auto3dgmTest(ScriptedLoadableModuleTest):
   """
