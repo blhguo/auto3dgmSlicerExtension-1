@@ -4,12 +4,8 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 
-# Ugly workaround for loading the auto3dgm python module:
-import sys
-cwd=os.getcwd()
-sys.path.append(cwd+'/Auto3dgm/auto3dgm/')
-from auto3dgm.dataset.datasetfactory import DatasetFactory
-from auto3dgm.mesh.subsample import Subsample
+from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
+from auto3dgm_nazar.mesh.subsample import Subsample
 #
 # Auto3dgm
 #
@@ -35,6 +31,18 @@ This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc
 and Steve Pieper, Isomics, Inc. and was partially funded by NIH grant 3P41RR013218-12S1.
 """ # replace with organization, grant and thanks.
 
+    # module level data
+
+#
+# Auto3dgmModuleData
+#
+  """May be a temporary stand-in class, this stores module-level results and data
+  not stored in MRML scene"""
+class Auto3dgmData():
+  def __init__(self):
+    self.dataset = None
+
+
 #
 # Auto3dgmWidget
 #
@@ -48,33 +56,15 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     ScriptedLoadableModuleWidget.setup(self)
 
     #Widget variables
-    self.mesh_folder=None
-    self.visualizationmesh_folder=None
-    self.ssresults=None
+    self.meshFolder = None
+    self.visualizationMeshFolder = None
+    self.Auto3dgmData = Auto3dgmData()
 
     # Instantiate and connect widgets ...
-
-    #
-    # Parameters Area
-    #
-    # parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    # parametersCollapsibleButton.text = "Parameters"
-    # self.layout.addWidget(parametersCollapsibleButton)
-
-    # Layout within the dummy collapsible button
-    # parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
-
-    # Add vertical spacer
-    # Create Tabs
-    # self.layout.addStretch(1)
-
     tabsWidget = qt.QTabWidget()
     setupTab = qt.QWidget()
     setupTabLayout = qt.QFormLayout(setupTab)
     
-    
-
-
     runTab = qt.QWidget()
     runTabLayout = qt.QFormLayout(runTab)
     outTab = qt.QWidget()
@@ -85,13 +75,13 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     tabsWidget.addTab(outTab, "Visualize/Output")
     self.layout.addWidget(tabsWidget)
 
+    self.setupSetupTab(setupTabLayout)
     self.setupRunTab(runTabLayout)
     self.setupOutTab(outTabLayout)
   
-    ### SETUP TAB WIDGETS AND BEHAVIORS ###
+  ### SETUP TAB WIDGETS AND BEHAVIORS ###
 
-    # Input and Output Folder section
-
+  def setupSetupTab(self, setupTabLayout):
     inputfolderWidget=ctk.ctkCollapsibleButton()
     inputfolderLayout=qt.QFormLayout(inputfolderWidget)
     inputfolderWidget.text = "Input and output folder"
@@ -114,7 +104,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     inputfolderLayout.addRow(self.loadButton)
     inputfolderLayout.addRow(self.meshOutputText)
     inputfolderLayout.addRow(self.outputFolderButton)
-    #self.layout.addWidget(inbutton)
     self.LMbutton.connect('clicked(bool)', self.selectMeshFolder)
 
     self.parameterWidget = ctk.ctkCollapsibleButton()
@@ -176,11 +165,25 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.processingComboBox.addItem("Cluster/Grid")
     self.parameterLayout.addRow("Processing", self.processingComboBox)
 
+  def selectMeshFolder(self):
+      self.meshFolder=qt.QFileDialog().getExistingDirectory()
+      self.meshInputText.setText(self.meshFolder)
+      try:
+        self.loadButton.enabled=bool(self.meshFolder)
+      except AttributeError:
+        self.loadButton.enable=False
 
+  def selectOutputFolder(self):
+    self.outputfolder=qt.QFileDialog().getExistingDirectory()
+    self.meshOutputText.setText(self.outputfolder)
 
-    
-    
-    
+  def onLoad(self):
+    print("Mocking a call to the Logic service AL001.1  with directory" + str(self.meshFolder))
+    self.Auto3dgmData = Auto3dgmLogic.createDataset(self.meshFolder)
+    try:
+      self.subStepButton.enabled=bool(self.meshFolder)
+    except AttributeError:
+      self.subStepButton.enable=False
 
   ### RUN TAB WIDGETS AND BEHAVIORS ###
 
@@ -216,7 +219,8 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def subStepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.1")
-    self.ssresults=Auto3dgmLogic.subsample(list_of_pts=[self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.dataset.datasets[0])
+    # TODO: Add this subsample result to self.Auto3dgmData.dataset :) 
+    # self.ssresults = Auto3dgmLogic.subsample(list_of_pts=[self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.dataset.datasets[0])
 
   def phase1StepButtonOnLoad(self):
     print("Mocking a call to the Logic service AL002.2")
@@ -230,7 +234,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
   def setupOutTab(self, outTabLayout):
-
     visualizationinputfolderWidget=ctk.ctkCollapsibleButton()
     visualizationinputfolderLayout=qt.QFormLayout(visualizationinputfolderWidget)
     visualizationinputfolderWidget.text = ""
@@ -242,12 +245,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     visualizationinputfolderLayout.addRow(self.visualizationmeshInputText)#,1,2)
     visualizationinputfolderLayout.addRow(self.visualizationinputFolderButton)#,1,3)
 
-    self.visualizationinputFolderButton.connect('clicked(bool)', self.visualizationselectMeshFolder)
-    #self.loadButton=qt.QPushButton("Load Data")
-    #self.loadButton.enabled=False
-    #self.loadButton.connect('clicked(bool)', self.onLoad)
-    #self.LMText, volumeInLabel, self.LMbutton=self.textIn('Input Directory','..', '')
-
+    self.visualizationinputFolderButton.connect('clicked(bool)', self.visualizationSelectMeshFolder)
 
     self.visGroupBox = qt.QGroupBox("Visualize results")
     self.visGroupBoxLayout = qt.QVBoxLayout()
@@ -327,36 +325,15 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     button=qt.QPushButton(dispText)
     return textInLine, lineLabel, button
 
-  def selectMeshFolder(self):
-    self.mesh_folder=qt.QFileDialog().getExistingDirectory()
-    self.meshInputText.setText(self.mesh_folder)
-    try:
-      self.loadButton.enabled=bool(self.mesh_folder)
-    except AttributeError:
-      self.loadButton.enable=False
-
-  def visualizationselectMeshFolder(self):
-    self.visualizationmesh_folder=qt.QFileDialog().getExistingDirectory()
-    self.visualizationmeshInputText.setText(self.visualizationmesh_folder)
-    slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/MSTmatrix.csv")
-    slicer.app.coreIOManager().loadFile(self.visualizationmesh_folder+"/distancematrix.csv")
-    print(self.visualizationmesh_folder)
-
-  def selectOutputFolder(self):
-    self.outputfolder=qt.QFileDialog().getExistingDirectory()
-    self.meshOutputText.setText(self.outputfolder)
+  def visualizationSelectMeshFolder(self):
+    self.visualizationMeshFolder=qt.QFileDialog().getExistingDirectory()
+    self.visualizationmeshInputText.setText(self.visualizationMeshFolder)
+    slicer.app.coreIOManager().loadFile(self.visualizationMeshFolder+"/MSTmatrix.csv")
+    slicer.app.coreIOManager().loadFile(self.visualizationMeshFolder+"/distancematrix.csv")
+    print(self.visualizationMeshFolder)
 
   def cleanup(self):
     pass
-
-  def onLoad(self):
-    print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
-    self.dataset=Auto3dgmLogic.createDataset(self.mesh_folder)
-    try:
-      self.subStepButton.enabled=bool(self.mesh_folder)
-    except AttributeError:
-      self.subStepButton.enable=False
-
 
 #
 # Auto3dgmLogic
@@ -372,79 +349,21 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def hasImageData(self,volumeNode):
-    """This is an example logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      logging.debug('hasImageData failed: no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      logging.debug('hasImageData failed: no image data in volume node')
-      return False
-    return True
-
-  def isValidInputOutputData(self, inputVolumeNode, outputVolumeNode):
-    """Validates if the output is not the same as input
-    """
-    if not inputVolumeNode:
-      logging.debug('isValidInputOutputData failed: no input volume node defined')
-      return False
-    if not outputVolumeNode:
-      logging.debug('isValidInputOutputData failed: no output volume node defined')
-      return False
-    if inputVolumeNode.GetID()==outputVolumeNode.GetID():
-      logging.debug('isValidInputOutputData failed: input and output volume is the same. Create a new volume for output to avoid this error.')
-      return False
-    return True
-
-  def run(self, inputVolume, outputVolume, imageThreshold, enableScreenshots=0):
-    """
-    Run the actual algorithm
-    """
-
-    if not self.isValidInputOutputData(inputVolume, outputVolume):
-      slicer.util.errorDisplay('Input volume is the same as output volume. Choose a different output volume.')
-      return False
-
-    logging.info('Processing started')
-
-    # Compute the thresholded output volume using the Threshold Scalar Volume CLI module
-    cliParams = {'InputVolume': inputVolume.GetID(), 'OutputVolume': outputVolume.GetID(), 'ThresholdValue' : imageThreshold, 'ThresholdType' : 'Above'}
-    cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True)
-
-    # Capture screenshot
-    if enableScreenshots:
-      self.takeScreenshot('Auto3dgmTest-Start','MyScreenshot',-1)
-
-    logging.info('Processing completed')
-
-    return True
-
-  #Logic service function AL001.001 Create dataset
-
+  # Logic service function AL001.001 Create dataset
   def createDataset(inputdirectory):
     dataset=DatasetFactory.ds_from_dir(inputdirectory)
     return dataset
-
-
-
 
   # Logic service function AL002.1 Subsample
 
   # In: List of points, possibly just one
   # list of meshes
-
-
   def subsample(list_of_pts, meshes):
     ss = Subsample(pointNumber=list_of_pts, meshes=meshes)
     #print(list_of_pts)
     ss_res = ss.ret
     return(ss_res)
    
-
-
 class Auto3dgmTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
