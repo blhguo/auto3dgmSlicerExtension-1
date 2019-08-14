@@ -250,17 +250,23 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     print(self.Auto3dgmData.datasetCollection.datasets)
 
   def phase1StepButtonOnLoad(self):
-    corr = Auto3dgmLogic.correspondence(self, phase = 1)
-    self.Auto3dgmData.datasetCollection.add_analysis_set(corr,"Phase 1")
+    #corr = Auto3dgmLogic.correspondence(self, phase = 1)
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=1),"Phase 1")
     print("Mocking a call to the Logic service AL002.2")
 
   def phase2StepButtonOnLoad(self):
-    corr = Auto3dgmLogic.correspondence(self, phase=2)
-    self.Auto3dgmData.datasetCollection.add_analysis_set(corr,"Phase 2")
+    #corr = Auto3dgmLogic.correspondence(self, phase=2)
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=2),"Phase 2")
     print("Mocking a call to the Logic service AL002.2")
 
   def allStepsButtonOnLoad(self):
     print("Mocking a call to the Logic service AL000.0")
+    self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
+    self.Auto3dgmData.phase2SampledPoints = self.phase2PointNumber.value
+    #Auto3dgmLogic.subsample(self,list_of_pts = [self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.Auto3dgmData.datasetCollection.datasets[0])
+    #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 1),"Phase 1")
+    #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 2),"Phase 2")
+    Auto3dgmLogic.runAll(self)
 
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
@@ -403,6 +409,13 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
+  def runAll(self):
+    Auto3dgmLogic.subsample(self,[self.phase1PointNumber.value,self.phase2PointNumber.value],self.Auto3dgmData.datasetCollection.datasets[0])
+    print("Subsampling complete.")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=1),"Phase 1")
+    print("Phase 1 complete.")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=2),"Phase 2")
+    print("Phase 2 complete.")
 
   # Logic service function AL001.001 Create dataset
   def createDataset(inputdirectory):
@@ -471,7 +484,7 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
       print(outputdir)
       print(mesh.name)
       MeshExport.writeToFile(outputdir,mesh,format='obj')
-   
+
 class Auto3dgmTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
