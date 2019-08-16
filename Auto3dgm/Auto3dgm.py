@@ -245,18 +245,18 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     self.Auto3dgmData.phase2SampledPoints = self.phase2PointNumber.value
     self.Auto3dgmData.fpsSeed=self.fpsSeed.value
-    Auto3dgmLogic.subsample(self,list_of_pts = [self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.Auto3dgmData.datasetCollection.datasets[0])
+    Auto3dgmLogic.subsample(self.Auto3dgmData,list_of_pts = [self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.Auto3dgmData.datasetCollection.datasets[0])
     print("Dataset collection updated")
     print(self.Auto3dgmData.datasetCollection.datasets)
 
   def phase1StepButtonOnLoad(self):
     #corr = Auto3dgmLogic.correspondence(self, phase = 1)
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=1),"Phase 1")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, phase=1),"Phase 1")
     print("Mocking a call to the Logic service AL002.2")
 
   def phase2StepButtonOnLoad(self):
     #corr = Auto3dgmLogic.correspondence(self, phase=2)
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=2),"Phase 2")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, phase=2),"Phase 2")
     print("Mocking a call to the Logic service AL002.2")
 
   def allStepsButtonOnLoad(self):
@@ -392,8 +392,8 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     pass
 
   def onImportAligned(self):
-    Auto3dgmLogic.alignOriginalMeshes(self)
-    Auto3dgmLogic.saveAlignedMeshesForViewer(self)
+    Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData)
+    Auto3dgmLogic.saveAlignedMeshesForViewer(self.Auto3dgmData, self.outputFolder)
     print("Meshes exported")
 
 #
@@ -409,12 +409,12 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
-  def runAll(self):
-    Auto3dgmLogic.subsample(self,[self.phase1PointNumber.value,self.phase2PointNumber.value],self.Auto3dgmData.datasetCollection.datasets[0])
+  def runAll(Auto3dgmData):
+    Auto3dgmLogic.subsample(Auto3dgmData,[Auto3dgmData.phase1SampledPoints,Auto3dgmData.phase2SampledPoints],Auto3dgmData.datasetCollection.datasets[0])
     print("Subsampling complete.")
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=1),"Phase 1")
+    Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(Auto3dgmData, phase=1),"Phase 1")
     print("Phase 1 complete.")
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase=2),"Phase 2")
+    Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(Auto3dgmData, phase=2),"Phase 2")
     print("Phase 2 complete.")
 
   # Logic service function AL001.001 Create dataset
@@ -426,7 +426,7 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
 
   # In: List of points, possibly just one
   # list of meshes
-  def subsample(self,list_of_pts, meshes):
+  def subsample(Auto3dgmData,list_of_pts, meshes):
     print(list_of_pts)
     for mesh in meshes:
         print(len(mesh.vertices))
@@ -439,18 +439,19 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
         meshes.append(mesh)
       dataset = {}
       dataset[point] = meshes
-      self.Auto3dgmData.datasetCollection.add_dataset(dataset,point)
+      Auto3dgmData.datasetCollection.add_dataset(dataset,point)
+    return(Auto3dgmData)
 
   def createDatasetCollection(dataset,name):
     datasetCollection=auto3dgm_nazar.dataset.datasetcollection.DatasetCollection(datasets = [dataset],dataset_names = [name])
     return datasetCollection
 
-  def correspondence(self, phase = 1):
+  def correspondence(Auto3dgmData, phase = 1):
     if phase == 1:
-      npoints = self.Auto3dgmData.phase1SampledPoints
+      npoints = Auto3dgmData.phase1SampledPoints
     else:
-      npoints = self.Auto3dgmData.phase2SampledPoints
-    meshes = self.Auto3dgmData.datasetCollection.datasets[npoints][npoints]
+      npoints = Auto3dgmData.phase2SampledPoints
+    meshes = Auto3dgmData.datasetCollection.datasets[npoints][npoints]
     corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes)
     print("Correspondence compute for Phase " + str(phase))
     return(corr)
@@ -461,26 +462,27 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     np.savetxt(filename+".csv",array,delimiter = ",",fmt = "%s")
     print(str(array) + " saved to file " + str(filename))
 
-  def alignOriginalMeshes(self, phase = 2):
-    if 'Phase 2' in self.Auto3dgmData.datasetCollection.analysis_sets:
-      corr = self.Auto3dgmData.datasetCollection.analysis_sets['Phase 2']
-    elif 'Phase 1' in self.Auto3dgmData.datasetCollection.analysis_sets:
-      corr = self.Auto3dgmData.datasetCollection.analysis_sets['Phase 1']
+  def alignOriginalMeshes(Auto3dgmData, phase = 2):
+    if 'Phase 2' in Auto3dgmData.datasetCollection.analysis_sets:
+      corr = Auto3dgmData.datasetCollection.analysis_sets['Phase 2']
+    elif 'Phase 1' in Auto3dgmData.datasetCollection.analysis_sets:
+      corr = Auto3dgmData.datasetCollection.analysis_sets['Phase 1']
       print("Phase 2 results do not exist, computing with Phase 1")
     else:
       print("No alignment has been computed")
       return(0)
-    meshes = self.Auto3dgmData.datasetCollection.datasets[0]
-    self.Auto3dgmData.aligned_meshes = []
+    meshes = Auto3dgmData.datasetCollection.datasets[0]
+    Auto3dgmData.aligned_meshes = []
     for t in range(len(meshes)):
       R = corr.globalized_alignment['r'][t]
       aligned_mesh = meshes[t]
       aligned_mesh.rotate(arr = R)
-      self.Auto3dgmData.aligned_meshes.append(aligned_mesh)
+      Auto3dgmData.aligned_meshes.append(aligned_mesh)
+    return(Auto3dgmData)
 
-  def saveAlignedMeshesForViewer(self):
-    outputdir=self.outputFolder+'/aligned/'
-    for mesh in self.Auto3dgmData.aligned_meshes:
+  def saveAlignedMeshesForViewer(Auto3dgmData,outputFolder):
+    outputdir=outputFolder+'/aligned/'
+    for mesh in Auto3dgmData.aligned_meshes:
       print(outputdir)
       print(mesh.name)
       MeshExport.writeToFile(outputdir,mesh,format='obj')
