@@ -251,12 +251,12 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def phase1StepButtonOnLoad(self):
     #corr = Auto3dgmLogic.correspondence(self, phase = 1)
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, phase=1),"Phase 1")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, phase=1),"Phase 1")
     print("Mocking a call to the Logic service AL002.2")
 
   def phase2StepButtonOnLoad(self):
     #corr = Auto3dgmLogic.correspondence(self, phase=2)
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, phase=2),"Phase 2")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, phase=2),"Phase 2")
     print("Mocking a call to the Logic service AL002.2")
 
   def allStepsButtonOnLoad(self):
@@ -266,7 +266,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     #Auto3dgmLogic.subsample(self,list_of_pts = [self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.Auto3dgmData.datasetCollection.datasets[0])
     #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 1),"Phase 1")
     #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 2),"Phase 2")
-    Auto3dgmLogic.runAll(self.Auto3dgmData)
+    Auto3dgmLogic.runAll(self.Auto3dgmData, self.reflectionCheckBox.checked)
 
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
@@ -409,12 +409,12 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
-  def runAll(Auto3dgmData):
+  def runAll(Auto3dgmData, mirror):
     Auto3dgmLogic.subsample(Auto3dgmData,[Auto3dgmData.phase1SampledPoints,Auto3dgmData.phase2SampledPoints],Auto3dgmData.datasetCollection.datasets[0])
     print("Subsampling complete.")
-    Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(Auto3dgmData, phase=1),"Phase 1")
+    Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(Auto3dgmData, mirror, phase=1),"Phase 1")
     print("Phase 1 complete.")
-    Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(Auto3dgmData, phase=2),"Phase 2")
+    Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(Auto3dgmData, mirror, phase=2),"Phase 2")
     print("Phase 2 complete.")
 
   # Logic service function AL001.001 Create dataset
@@ -442,17 +442,17 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
       Auto3dgmData.datasetCollection.add_dataset(dataset,point)
     return(Auto3dgmData)
 
-  def createDatasetCollection(dataset,name):
+  def createDatasetCollection(dataset, name):
     datasetCollection=auto3dgm_nazar.dataset.datasetcollection.DatasetCollection(datasets = [dataset],dataset_names = [name])
     return datasetCollection
 
-  def correspondence(Auto3dgmData, phase = 1):
+  def correspondence(Auto3dgmData, mirror, phase = 1):
     if phase == 1:
       npoints = Auto3dgmData.phase1SampledPoints
     else:
       npoints = Auto3dgmData.phase2SampledPoints
     meshes = Auto3dgmData.datasetCollection.datasets[npoints][npoints]
-    corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes)
+    corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes, mirror=mirror)
     print("Correspondence compute for Phase " + str(phase))
     return(corr)
 
