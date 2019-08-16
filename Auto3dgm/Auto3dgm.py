@@ -266,7 +266,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     #Auto3dgmLogic.subsample(self,list_of_pts = [self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.Auto3dgmData.datasetCollection.datasets[0])
     #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 1),"Phase 1")
     #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 2),"Phase 2")
-    Auto3dgmLogic.runAll(self)
+    Auto3dgmLogic.runAll(self.Auto3dgmData)
 
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
