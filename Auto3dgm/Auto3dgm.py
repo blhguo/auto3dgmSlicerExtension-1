@@ -6,7 +6,9 @@ import logging
 from auto3dgm_nazar.mesh.meshexport import MeshExport
 import auto3dgm_nazar
 from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
+#from auto3dgm_nazar.mesh.meshfactory import MeshFactory
 import numpy as np
+from http.server import HTTPServer as BaseHTTPServer, SimpleHTTPRequestHandler
 #
 # Auto3dgm
 #
@@ -331,8 +333,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.importAlignedButton.connect('clicked(bool)', self.onImportAligned)
     self.outGroupBoxLayout.addWidget(self.importAlignedButton)
 
-
-
     outTabLayout.setVerticalSpacing(15)
 
   def visSubButtonOnLoad(self):
@@ -346,20 +346,26 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def outPhase1ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
-    if self.outputFolderPrepared == False:
+    if self.outputFolderPrepared==False:
       self.prepareOutputFolder()
-    for mesh in self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase1SampledPoints][self.Auto3dgmData.phase1SampledPoints]:
-        print(self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase1SampledPoints])
-        print(mesh)
-        cfilename=self.outputFolder+"/lowres/"+mesh.name
+    meshes = self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase1SampledPoints][self.Auto3dgmData.phase1SampledPoints]
+    rotations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['r']
+    permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['p']
+    meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
+    for mesh in meshes:
+        cfilename = self.outputFolder+"/highres/"+mesh.name
         Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
 
   def outPhase2ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
     if self.outputFolderPrepared==False:
       self.prepareOutputFolder()
-    for mesh in self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase2SampledPoints][self.Auto3dgmData.phase2SampledPoints]:
-        cfilename=self.outputFolder+"/highres/"+mesh.name
+    meshes = self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase2SampledPoints][self.Auto3dgmData.phase2SampledPoints]
+    rotations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 2"].globalized_alignment['r']
+    permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 2"].globalized_alignment['p']
+    meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
+    for mesh in meshes:
+        cfilename = self.outputFolder+"/highres/"+mesh.name
         Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
 
   def outVisButtonOnLoad(self):
@@ -393,8 +399,10 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def onImportAligned(self):
     Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData)
-    Auto3dgmLogic.saveAlignedMeshesForViewer(self.Auto3dgmData, self.outputFolder)
+    Auto3dgmLogic.saveAlignedMeshesForViewer(self.Auto3dgmData)
+    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, self.outputFolder)
     print("Meshes exported")
+
 
 #
 # Auto3dgmLogic
@@ -419,7 +427,7 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
 
   # Logic service function AL001.001 Create dataset
   def createDataset(inputdirectory):
-    dataset = DatasetFactory.ds_from_dir(inputdirectory)
+    dataset = DatasetFactory.ds_from_dir(inputdirectory,center_scale=True)
     return dataset
 
   # Logic service function AL002.1 Subsample
@@ -430,7 +438,7 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     print(list_of_pts)
     for mesh in meshes:
         print(len(mesh.vertices))
-    ss = auto3dgm_nazar.mesh.subsample.Subsample(pointNumber=list_of_pts, meshes=meshes, seed={})
+    ss = auto3dgm_nazar.mesh.subsample.Subsample(pointNumber=list_of_pts, meshes=meshes, seed={},center_scale=True)
     for point in list_of_pts:
       names = []
       meshes = []
@@ -455,6 +463,20 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes, mirror=mirror)
     print("Correspondence compute for Phase " + str(phase))
     return(corr)
+  
+  def landmarksFromPseudoLandmarks(subsampledMeshes,permutations,rotations):
+    meshes = []
+    for i in range(len(subsampledMeshes)):
+      mesh = subsampledMeshes[i]
+      perm = permutations[i]
+      rot = rotations[i]
+      print(perm.shape)
+      print(mesh.vertices.shape)
+      mesh.rotate(rot)
+      landmarks = perm*mesh.vertices
+      mesh = auto3dgm_nazar.mesh.meshfactory.MeshFactory.mesh_from_data(vertices=landmarks,name=mesh.name)
+      meshes.append(mesh)
+    return(meshes)
 
   def saveNumpyArrayToCsv(array,filename):
     print(array)
@@ -475,13 +497,24 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     Auto3dgmData.aligned_meshes = []
     for t in range(len(meshes)):
       R = corr.globalized_alignment['r'][t]
-      aligned_mesh = meshes[t]
-      aligned_mesh.rotate(arr = R)
+      verts=meshes[t].vertices
+      faces=meshes[t].faces
+      name=meshes[t].name
+      vertices=np.transpose(np.matmul(R,np.transpose(verts)))
+      aligned_mesh=auto3dgm_nazar.mesh.meshfactory.MeshFactory.mesh_from_data(vertices, faces=faces, name=name, center_scale=True, deep=True)
       Auto3dgmData.aligned_meshes.append(aligned_mesh)
     return(Auto3dgmData)
 
-  def saveAlignedMeshesForViewer(Auto3dgmData,outputFolder):
+  def saveAlignedMeshes(Auto3dgmData,outputFolder):
     outputdir=outputFolder+'/aligned/'
+    for mesh in Auto3dgmData.aligned_meshes:
+      print(outputdir)
+      print(mesh.name)
+      MeshExport.writeToFile(outputdir,mesh,format='obj')
+
+  def saveAlignedMeshesForViewer(Auto3dgmData):
+    Path=os.path.dirname(os.path.abspath(__file__))
+    outputdir=Path+'/viewer/aligned_meshes/'
     for mesh in Auto3dgmData.aligned_meshes:
       print(outputdir)
       print(mesh.name)
