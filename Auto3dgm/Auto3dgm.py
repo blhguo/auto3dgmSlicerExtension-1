@@ -5,8 +5,9 @@ from slicer.ScriptedLoadableModule import *
 import logging
 from auto3dgm_nazar.mesh.meshexport import MeshExport
 import auto3dgm_nazar
+from auto3dgm_nazar.mesh.subsample import Subsample
 from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
-#from auto3dgm_nazar.mesh.meshfactory import MeshFactory
+##from auto3dgm_nazar.mesh.meshfactory import MeshFactory
 import numpy as np
 from http.server import HTTPServer as BaseHTTPServer, SimpleHTTPRequestHandler
 #
@@ -328,8 +329,8 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.outVisButton.connect('clicked(bool)', self.outVisButtonOnLoad)
     self.outGroupBoxLayout.addWidget(self.outVisButton)
 
-    self.importAlignedButton = qt.QPushButton("Import aligned meshes")
-    self.importAlignedButton.toolTip = "Imports aligned meshes to be plugged to the webviewer"
+    self.importAlignedButton = qt.QPushButton("Export aligned meshes")
+    self.importAlignedButton.toolTip = "Export aligned meshes to be plugged to the webviewer"
     self.importAlignedButton.connect('clicked(bool)', self.onImportAligned)
     self.outGroupBoxLayout.addWidget(self.importAlignedButton)
 
@@ -353,7 +354,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['p']
     meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
     for mesh in meshes:
-        cfilename = self.outputFolder+"/highres/"+mesh.name
+        cfilename = self.outputFolder+"/lowres/"+mesh.name
         Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
 
   def outPhase2ButtonOnLoad(self):
@@ -438,7 +439,7 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     print(list_of_pts)
     for mesh in meshes:
         print(len(mesh.vertices))
-    ss = auto3dgm_nazar.mesh.subsample.Subsample(pointNumber=list_of_pts, meshes=meshes, seed={},center_scale=True)
+    ss = Subsample(pointNumber=list_of_pts, meshes=meshes, seed={},center_scale=True)
     for point in list_of_pts:
       names = []
       meshes = []
@@ -501,6 +502,8 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
       faces=meshes[t].faces
       name=meshes[t].name
       vertices=np.transpose(np.matmul(R,np.transpose(verts)))
+      vertices=vertices.astype('int64')
+      faces=faces.astype('int64')
       aligned_mesh=auto3dgm_nazar.mesh.meshfactory.MeshFactory.mesh_from_data(vertices, faces=faces, name=name, center_scale=True, deep=True)
       Auto3dgmData.aligned_meshes.append(aligned_mesh)
     return(Auto3dgmData)
