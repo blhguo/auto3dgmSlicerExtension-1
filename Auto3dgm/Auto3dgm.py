@@ -5,6 +5,7 @@ from slicer.ScriptedLoadableModule import *
 import logging
 from auto3dgm_nazar.mesh.meshexport import MeshExport
 import auto3dgm_nazar
+from auto3dgm_nazar.analysis.correspondence import Correspondence
 from auto3dgm_nazar.mesh.subsample import Subsample
 from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
 ##from auto3dgm_nazar.mesh.meshfactory import MeshFactory
@@ -494,7 +495,7 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     else:
       npoints = Auto3dgmData.phase2SampledPoints
     meshes = Auto3dgmData.datasetCollection.datasets[npoints][npoints]
-    corr = auto3dgm_nazar.analysis.correspondence.Correspondence(meshes=meshes, mirror=mirror)
+    corr = Correspondence(meshes=meshes, mirror=mirror)
     print("Correspondence compute for Phase " + str(phase))
     return(corr)
   
