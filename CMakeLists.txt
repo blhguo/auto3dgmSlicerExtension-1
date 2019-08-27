@@ -20,6 +20,7 @@ include(${Slicer_USE_FILE})
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(Auto3dgm)
+add_subdirectory(meshviewer)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

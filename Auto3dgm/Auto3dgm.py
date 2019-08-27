@@ -9,7 +9,9 @@ from auto3dgm_nazar.mesh.subsample import Subsample
 from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
 ##from auto3dgm_nazar.mesh.meshfactory import MeshFactory
 import numpy as np
-from http.server import HTTPServer as BaseHTTPServer, SimpleHTTPRequestHandler
+
+#import web_view_mesh
+
 #
 # Auto3dgm
 #
@@ -72,6 +74,8 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.visualizationMeshFolder = None
     self.outputFolderPrepared = False
     self.Auto3dgmData = Auto3dgmData()
+    self.webWidget = None
+    self.serverNode = None
 
     # Instantiate and connect widgets ...
     tabsWidget = qt.QTabWidget()
@@ -287,6 +291,29 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     self.visualizationinputFolderButton.connect('clicked(bool)', self.visualizationSelectMeshFolder)
 
+    self.visMeshGroupBox = qt.QGroupBox("Visualize aligned meshes")
+    self.visMeshGroupBoxLayout = qt.QVBoxLayout()
+    self.visMeshGroupBoxLayout.setSpacing(5)
+    self.visMeshGroupBox.setLayout(self.visMeshGroupBoxLayout)
+    outTabLayout.addRow(self.visMeshGroupBox)
+
+    self.visStartServerButton = qt.QPushButton("Start mesh visualization server")
+    self.visStartServerButton.toolTip = "Start server for visualizing aligned meshes. Be sure to stop server before quitting Slicer."
+    self.visStartServerButton.connect('clicked(bool)', self.visStartServerButtonOnLoad)
+    self.visMeshGroupBoxLayout.addWidget(self.visStartServerButton)
+
+    self.visPhase1Button = qt.QPushButton("View Phase 1 alignment")
+    self.visPhase1Button.toolTip = "Visualize aligned meshes with alignment based on low resolution subsampled points."
+    self.visPhase1Button.connect('clicked(bool)', self.visPhase1ButtonOnLoad)
+    self.visPhase1Button.enabled = False
+    self.visMeshGroupBoxLayout.addWidget(self.visPhase1Button)
+
+    self.visPhase2Button = qt.QPushButton("View Phase 2 alignment")
+    self.visPhase2Button.toolTip = "Visualize aligned meshes with alignment based on high resolution subsampled points."
+    self.visPhase2Button.connect('clicked(bool)', self.visPhase2ButtonOnLoad)
+    self.visPhase2Button.enabled = False
+    self.visMeshGroupBoxLayout.addWidget(self.visPhase2Button)
+
     self.visGroupBox = qt.QGroupBox("Visualize results")
     self.visGroupBoxLayout = qt.QVBoxLayout()
     self.visGroupBoxLayout.setSpacing(5)
@@ -297,16 +324,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.visSubButton.toolTip = "Visualize collections of subsampled points per mesh."
     self.visSubButton.connect('clicked(bool)', self.visSubButtonOnLoad)
     self.visGroupBoxLayout.addWidget(self.visSubButton) 
-
-    self.visPhase1Button = qt.QPushButton("Phase 1")
-    self.visPhase1Button.toolTip = "Visualize aligned meshes with alignment based on low resolution subsampled points."
-    self.visPhase1Button.connect('clicked(bool)', self.visPhase1ButtonOnLoad)
-    self.visGroupBoxLayout.addWidget(self.visPhase1Button)
-
-    self.visPhase2Button = qt.QPushButton("Phase 2")
-    self.visPhase2Button.toolTip = "Visualize aligned meshes with alignment based on high resolution subsampled points."
-    self.visPhase2Button.connect('clicked(bool)', self.visPhase2ButtonOnLoad)
-    self.visGroupBoxLayout.addWidget(self.visPhase2Button)
 
     self.outGroupBox = qt.QGroupBox("Output results")
     self.outGroupBoxLayout = qt.QVBoxLayout()
@@ -339,12 +356,29 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   def visSubButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.3, maybe others")
 
+  def visStartServerButtonOnLoad(self):
+    if self.visStartServerButton.text == "Start mesh visualization server":
+      self.visPhase1Button.enabled = True
+      self.visPhase2Button.enabled = True
+      self.visStartServerButton.setText("Stop Mesh Visualization Server")
+      self.serverNode = Auto3dgmLogic.serveWebViewer(os.path.join(self.outputFolder, 'aligned'))
+    else:
+      self.visPhase1Button.enabled = False
+      self.visPhase2Button.enabled = False
+      self.visStartServerButton.setText("Start mesh visualization server") 
+      if self.serverNode:
+        self.serverNode.Cancel()     
+
   def visPhase1ButtonOnLoad(self):
-    print("Mocking a call to the Logic service AL003.3, AL003.4")
+    Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData, phase = 1)
+    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, os.path.join(self.outputFolder, 'aligned'))
+    self.webWidget = Auto3dgmLogic.createWebWidget()
 
   def visPhase2ButtonOnLoad(self):
-    print("Mocking a call to the Logic service AL003.3, AL003.4")
-
+    Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData, phase = 2)
+    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, os.path.join(self.outputFolder, 'aligned'))
+    self.webWidget = Auto3dgmLogic.createWebWidget()
+    
   def outPhase1ButtonOnLoad(self):
     print("Mocking a call to the Logic service AL003.1")
     if self.outputFolderPrepared==False:
@@ -400,10 +434,9 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
   def onImportAligned(self):
     Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData)
-    Auto3dgmLogic.saveAlignedMeshesForViewer(self.Auto3dgmData)
-    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, self.outputFolder)
+    # Auto3dgmLogic.saveAlignedMeshesForViewer(self.Auto3dgmData)
+    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, os.path.join(self.outputFolder, 'aligned'))
     print("Meshes exported")
-
 
 #
 # Auto3dgmLogic
@@ -509,19 +542,24 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
     return(Auto3dgmData)
 
   def saveAlignedMeshes(Auto3dgmData,outputFolder):
-    outputdir=outputFolder+'/aligned/'
+    if not os.path.exists(outputFolder):
+      os.makedirs(outputFolder)
     for mesh in Auto3dgmData.aligned_meshes:
-      print(outputdir)
-      print(mesh.name)
-      MeshExport.writeToFile(outputdir,mesh,format='obj')
+      print(os.path.join(outputFolder, mesh.name))
+      MeshExport.writeToFile(outputFolder, mesh, format='ply')
 
-  def saveAlignedMeshesForViewer(Auto3dgmData):
-    Path=os.path.dirname(os.path.abspath(__file__))
-    outputdir=Path+'/viewer/aligned_meshes/'
-    for mesh in Auto3dgmData.aligned_meshes:
-      print(outputdir)
-      print(mesh.name)
-      MeshExport.writeToFile(outputdir,mesh,format='obj')
+  def serveWebViewer(outputFolder):
+    parameters = { 'MeshDirectory': outputFolder }
+    return slicer.cli.run(slicer.modules.meshviewer, None, parameters)
+  
+  def createWebWidget():
+    webWidget = slicer.qSlicerWebWidget()
+    slicerGeometry = slicer.util.mainWindow().geometry
+    webWidget.size = qt.QSize(slicerGeometry.width(),slicerGeometry.height())
+    webWidget.pos = qt.QPoint(slicerGeometry.x() + 256, slicerGeometry.y() + 128)
+    webWidget.url = "http://localhost:8000"
+    webWidget.show()
+    return webWidget
 
 class Auto3dgmTest(ScriptedLoadableModuleTest):
   """
