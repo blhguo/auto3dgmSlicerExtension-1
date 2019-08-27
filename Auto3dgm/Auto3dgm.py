@@ -535,7 +535,6 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
       faces=meshes[t].faces
       name=meshes[t].name
       vertices=np.transpose(np.matmul(R,np.transpose(verts)))
-      vertices=vertices.astype('int64')
       faces=faces.astype('int64')
       aligned_mesh=auto3dgm_nazar.mesh.meshfactory.MeshFactory.mesh_from_data(vertices, faces=faces, name=name, center_scale=True, deep=True)
       Auto3dgmData.aligned_meshes.append(aligned_mesh)
