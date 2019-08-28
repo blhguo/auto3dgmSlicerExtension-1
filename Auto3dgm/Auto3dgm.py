@@ -1,14 +1,17 @@
 import os
+import shutil
 import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
-from auto3dgm_nazar.mesh.meshexport import MeshExport
+
 import auto3dgm_nazar
+from auto3dgm_nazar.mesh.meshexport import MeshExport
 from auto3dgm_nazar.analysis.correspondence import Correspondence
 from auto3dgm_nazar.mesh.subsample import Subsample
 from auto3dgm_nazar.dataset.datasetfactory import DatasetFactory
-##from auto3dgm_nazar.mesh.meshfactory import MeshFactory
+from auto3dgm_nazar.mesh.meshfactory import MeshFactory
+
 import numpy as np
 
 #import web_view_mesh
@@ -90,7 +93,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
 
     tabsWidget.addTab(setupTab, "Setup")
     tabsWidget.addTab(runTab, "Run")
-    tabsWidget.addTab(outTab, "Visualize/Output")
+    tabsWidget.addTab(outTab, "Visualize")
     self.layout.addWidget(tabsWidget)
 
     self.setupSetupTab(setupTabLayout)
@@ -196,8 +199,6 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.meshOutputText.setText(self.outputFolder)
 
   def onLoad(self):
-    #print("Mocking a call to the Logic service AL001.1  with directory" + str(self.mesh_folder))
-    #self.Auto3dgmData.datasetCollection=Auto3dgmLogic.createDatasetCollection(Auto3dgmLogic.createDataset(self.meshFolder),"original")
     self.Auto3dgmData.datasetCollection=Auto3dgmLogic.createDataset(self.meshFolder)
     print(self.Auto3dgmData.datasetCollection)
     try:
@@ -258,39 +259,37 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     print(self.Auto3dgmData.datasetCollection.datasets)
 
   def phase1StepButtonOnLoad(self):
-    #corr = Auto3dgmLogic.correspondence(self, phase = 1)
     self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, phase=1),"Phase 1")
-    print("Mocking a call to the Logic service AL002.2")
+    self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
+    print('Exporting data')
+    Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [1])
 
   def phase2StepButtonOnLoad(self):
-    #corr = Auto3dgmLogic.correspondence(self, phase=2)
     self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, phase=2),"Phase 2")
-    print("Mocking a call to the Logic service AL002.2")
+    self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
+    Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [2])
 
   def allStepsButtonOnLoad(self):
-    print("Mocking a call to the Logic service AL000.0")
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     self.Auto3dgmData.phase2SampledPoints = self.phase2PointNumber.value
-    #Auto3dgmLogic.subsample(self,list_of_pts = [self.phase1PointNumber.value,self.phase2PointNumber.value], meshes=self.Auto3dgmData.datasetCollection.datasets[0])
-    #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 1),"Phase 1")
-    #self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self, phase = 2),"Phase 2")
     Auto3dgmLogic.runAll(self.Auto3dgmData, self.reflectionCheckBox.checked)
+    Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [1, 2])
 
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
 
   def setupOutTab(self, outTabLayout):
-    visualizationinputfolderWidget=ctk.ctkCollapsibleButton()
-    visualizationinputfolderLayout=qt.QFormLayout(visualizationinputfolderWidget)
-    visualizationinputfolderWidget.text = ""
-    outTabLayout.addRow(visualizationinputfolderWidget)
+    # visualizationinputfolderWidget=ctk.ctkCollapsibleButton()
+    # visualizationinputfolderLayout=qt.QFormLayout(visualizationinputfolderWidget)
+    # visualizationinputfolderWidget.text = ""
+    # outTabLayout.addRow(visualizationinputfolderWidget)
 
-    self.visualizationmeshInputText, visualizationvolumeInLabel, self.visualizationinputFolderButton=self.textIn('Input folder','Choose input folder', '')
+    # self.visualizationmeshInputText, visualizationvolumeInLabel, self.visualizationinputFolderButton=self.textIn('Input folder','Choose input folder', '')
 
-    visualizationinputfolderLayout.addRow(visualizationvolumeInLabel)#,1,1)    
-    visualizationinputfolderLayout.addRow(self.visualizationmeshInputText)#,1,2)
-    visualizationinputfolderLayout.addRow(self.visualizationinputFolderButton)#,1,3)
+    # visualizationinputfolderLayout.addRow(visualizationvolumeInLabel)#,1,1)    
+    # visualizationinputfolderLayout.addRow(self.visualizationmeshInputText)#,1,2)
+    # visualizationinputfolderLayout.addRow(self.visualizationinputFolderButton)#,1,3)
 
-    self.visualizationinputFolderButton.connect('clicked(bool)', self.visualizationSelectMeshFolder)
+    # self.visualizationinputFolderButton.connect('clicked(bool)', self.visualizationSelectMeshFolder)
 
     self.visMeshGroupBox = qt.QGroupBox("Visualize aligned meshes")
     self.visMeshGroupBoxLayout = qt.QVBoxLayout()
@@ -324,33 +323,34 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.visSubButton = qt.QPushButton("Subsample")
     self.visSubButton.toolTip = "Visualize collections of subsampled points per mesh."
     self.visSubButton.connect('clicked(bool)', self.visSubButtonOnLoad)
+    self.visSubButton.enabled = False
     self.visGroupBoxLayout.addWidget(self.visSubButton) 
 
-    self.outGroupBox = qt.QGroupBox("Output results")
-    self.outGroupBoxLayout = qt.QVBoxLayout()
-    self.outGroupBoxLayout.setSpacing(5)
-    self.outGroupBox.setLayout(self.outGroupBoxLayout)
-    outTabLayout.addRow(self.outGroupBox)
+    # self.outGroupBox = qt.QGroupBox("Output results")
+    # self.outGroupBoxLayout = qt.QVBoxLayout()
+    # self.outGroupBoxLayout.setSpacing(5)
+    # self.outGroupBox.setLayout(self.outGroupBoxLayout)
+    # outTabLayout.addRow(self.outGroupBox)
 
-    self.outPhase1Button = qt.QPushButton("Phase 1 results to GPA")
-    self.outPhase1Button.toolTip = "Output aligned mesh results (based on low resolution subsampled points) to GPA toolkit extension for PCA and other analysis."
-    self.outPhase1Button.connect('clicked(bool)', self.outPhase1ButtonOnLoad)
-    self.outGroupBoxLayout.addWidget(self.outPhase1Button)
+    # self.outPhase1Button = qt.QPushButton("Phase 1 results to GPA")
+    # self.outPhase1Button.toolTip = "Output aligned mesh results (based on low resolution subsampled points) to GPA toolkit extension for PCA and other analysis."
+    # self.outPhase1Button.connect('clicked(bool)', self.outPhase1ButtonOnLoad)
+    # self.outGroupBoxLayout.addWidget(self.outPhase1Button)
 
-    self.outPhase2Button = qt.QPushButton("Phase 2 results to GPA")
-    self.outPhase2Button.toolTip = "Output aligned mesh results (based on high resolution subsampled points)to GPA toolkit extension for PCA and other analysis."
-    self.outPhase2Button.connect('clicked(bool)', self.outPhase2ButtonOnLoad)
-    self.outGroupBoxLayout.addWidget(self.outPhase2Button)
+    # self.outPhase2Button = qt.QPushButton("Phase 2 results to GPA")
+    # self.outPhase2Button.toolTip = "Output aligned mesh results (based on high resolution subsampled points)to GPA toolkit extension for PCA and other analysis."
+    # self.outPhase2Button.connect('clicked(bool)', self.outPhase2ButtonOnLoad)
+    # self.outGroupBoxLayout.addWidget(self.outPhase2Button)
 
-    self.outVisButton = qt.QPushButton("Visualization(s)")
-    self.outVisButton.toolTip = "Output all visualizations produced."
-    self.outVisButton.connect('clicked(bool)', self.outVisButtonOnLoad)
-    self.outGroupBoxLayout.addWidget(self.outVisButton)
+    # self.outVisButton = qt.QPushButton("Visualization(s)")
+    # self.outVisButton.toolTip = "Output all visualizations produced."
+    # self.outVisButton.connect('clicked(bool)', self.outVisButtonOnLoad)
+    # self.outGroupBoxLayout.addWidget(self.outVisButton)
 
-    self.importAlignedButton = qt.QPushButton("Export aligned meshes")
-    self.importAlignedButton.toolTip = "Export aligned meshes to be plugged to the webviewer"
-    self.importAlignedButton.connect('clicked(bool)', self.onImportAligned)
-    self.outGroupBoxLayout.addWidget(self.importAlignedButton)
+    # self.importAlignedButton = qt.QPushButton("Export aligned meshes")
+    # self.importAlignedButton.toolTip = "Export aligned meshes to be plugged to the webviewer"
+    # self.importAlignedButton.connect('clicked(bool)', self.onImportAligned)
+    # self.outGroupBoxLayout.addWidget(self.importAlignedButton)
 
     outTabLayout.setVerticalSpacing(15)
 
@@ -358,54 +358,57 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     print("Mocking a call to the Logic service AL003.3, maybe others")
 
   def visStartServerButtonOnLoad(self):
+    viewerTmp = os.path.join(self.outputFolder, 'viewer_tmp')
     if self.visStartServerButton.text == "Start mesh visualization server":
       self.visPhase1Button.enabled = True
       self.visPhase2Button.enabled = True
       self.visStartServerButton.setText("Stop Mesh Visualization Server")
-      self.serverNode = Auto3dgmLogic.serveWebViewer(os.path.join(self.outputFolder, 'aligned'))
+      Auto3dgmLogic.prepareDirs(viewerTmp)
+      self.serverNode = Auto3dgmLogic.serveWebViewer(viewerTmp)
     else:
       self.visPhase1Button.enabled = False
       self.visPhase2Button.enabled = False
       self.visStartServerButton.setText("Start mesh visualization server") 
       if self.serverNode:
-        self.serverNode.Cancel()     
+        self.serverNode.Cancel()
+      Auto3dgmLogic.removeDir(viewerTmp)
 
   def visPhase1ButtonOnLoad(self):
-    Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData, phase = 1)
-    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, os.path.join(self.outputFolder, 'aligned'))
+    viewerTmp = os.path.join(self.outputFolder, 'viewer_tmp')
+    Auto3dgmLogic.copyAlignedMeshes(viewerTmp, self.outputFolder, phase = 1)
     self.webWidget = Auto3dgmLogic.createWebWidget()
 
   def visPhase2ButtonOnLoad(self):
-    Auto3dgmLogic.alignOriginalMeshes(self.Auto3dgmData, phase = 2)
-    Auto3dgmLogic.saveAlignedMeshes(self.Auto3dgmData, os.path.join(self.outputFolder, 'aligned'))
+    viewerTmp = os.path.join(self.outputFolder, 'viewer_tmp')
+    Auto3dgmLogic.copyAlignedMeshes(viewerTmp, self.outputFolder, phase = 2)
     self.webWidget = Auto3dgmLogic.createWebWidget()
     
-  def outPhase1ButtonOnLoad(self):
-    print("Mocking a call to the Logic service AL003.1")
-    if self.outputFolderPrepared==False:
-      self.prepareOutputFolder()
-    meshes = self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase1SampledPoints][self.Auto3dgmData.phase1SampledPoints]
-    rotations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['r']
-    permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['p']
-    meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
-    for mesh in meshes:
-        cfilename = self.outputFolder+"/lowres/"+mesh.name
-        Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
+  # def outPhase1ButtonOnLoad(self):
+  #   print("Mocking a call to the Logic service AL003.1")
+  #   if self.outputFolderPrepared==False:
+  #     self.prepareOutputFolder()
+  #   meshes = self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase1SampledPoints][self.Auto3dgmData.phase1SampledPoints]
+  #   rotations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['r']
+  #   permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 1"].globalized_alignment['p']
+  #   meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
+  #   for mesh in meshes:
+  #       cfilename = self.outputFolder+"/lowres/"+mesh.name
+  #       Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
 
-  def outPhase2ButtonOnLoad(self):
-    print("Mocking a call to the Logic service AL003.1")
-    if self.outputFolderPrepared==False:
-      self.prepareOutputFolder()
-    meshes = self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase2SampledPoints][self.Auto3dgmData.phase2SampledPoints]
-    rotations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 2"].globalized_alignment['r']
-    permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 2"].globalized_alignment['p']
-    meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
-    for mesh in meshes:
-        cfilename = self.outputFolder+"/highres/"+mesh.name
-        Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
+  # def outPhase2ButtonOnLoad(self):
+  #   print("Mocking a call to the Logic service AL003.1")
+  #   if self.outputFolderPrepared==False:
+  #     self.prepareOutputFolder()
+  #   meshes = self.Auto3dgmData.datasetCollection.datasets[self.Auto3dgmData.phase2SampledPoints][self.Auto3dgmData.phase2SampledPoints]
+  #   rotations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 2"].globalized_alignment['r']
+  #   permutations = self.Auto3dgmData.datasetCollection.analysis_sets["Phase 2"].globalized_alignment['p']
+  #   meshes = Auto3dgmLogic.landmarksFromPseudoLandmarks(meshes,permutations,rotations)
+  #   for mesh in meshes:
+  #       cfilename = self.outputFolder+"/highres/"+mesh.name
+  #       Auto3dgmLogic.saveNumpyArrayToCsv(mesh.vertices,cfilename)
 
-  def outVisButtonOnLoad(self):
-    print("Mocking a call to the Logic service unnamed visualization output service")
+  # def outVisButtonOnLoad(self):
+  #   print("Mocking a call to the Logic service unnamed visualization output service")
 
   def textIn(self,label, dispText, toolTip):
     """ a function to set up the appearnce of a QlineEdit widget.
@@ -423,12 +426,12 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     button=qt.QPushButton(dispText)
     return textInLine, lineLabel, button
 
-  def visualizationSelectMeshFolder(self):
-    self.visualizationMeshFolder=qt.QFileDialog().getExistingDirectory()
-    self.visualizationmeshInputText.setText(self.visualizationMeshFolder)
-    slicer.app.coreIOManager().loadFile(self.visualizationMeshFolder+"/MSTmatrix.csv")
-    slicer.app.coreIOManager().loadFile(self.visualizationMeshFolder+"/distancematrix.csv")
-    print(self.visualizationMeshFolder)
+  # def visualizationSelectMeshFolder(self):
+  #   self.visualizationMeshFolder=qt.QFileDialog().getExistingDirectory()
+  #   self.visualizationmeshInputText.setText(self.visualizationMeshFolder)
+  #   slicer.app.coreIOManager().loadFile(self.visualizationMeshFolder+"/MSTmatrix.csv")
+  #   slicer.app.coreIOManager().loadFile(self.visualizationMeshFolder+"/distancematrix.csv")
+  #   print(self.visualizationMeshFolder)
 
   def cleanup(self):
     pass
@@ -548,8 +551,84 @@ class Auto3dgmLogic(ScriptedLoadableModuleLogic):
       print(os.path.join(outputFolder, mesh.name))
       MeshExport.writeToFile(outputFolder, mesh, format='ply')
 
-  def serveWebViewer(outputFolder):
-    parameters = { 'MeshDirectory': outputFolder }
+  def exportData(Auto3dgmData, outputFolder, phases=[1, 2]):
+    acceptable_phases = [1, 2]
+    for p in phases:
+      if p not in acceptable_phases:
+        raise ValueError('Unacceptable phase number passed to Auto3dgmLogic.exportData')
+        
+      exportFolder = os.path.join(outputFolder, 'phase' + str(p))
+      subDirs = ['aligned_meshes', 'aligned_landmarks']
+
+      Auto3dgmLogic.prepareDirs(exportFolder, subDirs)
+      Auto3dgmLogic.exportAlignedMeshes(Auto3dgmData, os.path.join(exportFolder, subDirs[0]), p)
+      Auto3dgmLogic.exportAlignedLandmarks(Auto3dgmData, os.path.join(exportFolder, subDirs[1]), p)
+
+  def exportAlignedMeshes(Auto3dgmData, exportFolder, phase = 2):
+    if phase == 1:
+      label = "Phase 1"
+    elif phase == 2:
+      label = "Phase 2"
+    else:
+      raise ValueError('Unaccepted phase number passed to Auto3dgmLogic.exportAlignedMeshes')
+
+    m = Auto3dgmData.datasetCollection.datasets[0]
+    r = Auto3dgmData.datasetCollection.analysis_sets[label].globalized_alignment['r']
+
+    for idx, mesh in enumerate(m):
+      new_vertices = np.transpose(r[idx] @ np.transpose(mesh.vertices))
+      new_faces = mesh.faces.astype('int64')
+      new_mesh = MeshFactory.mesh_from_data(new_vertices, faces=new_faces, name=mesh.name, center_scale=True, deep=True)
+      MeshExport.writeToFile(exportFolder, new_mesh, format='ply')
+
+  def exportAlignedLandmarks(Auto3dgmData, exportFolder, phase = 2):
+    if phase == 1:
+      n = Auto3dgmData.phase1SampledPoints
+      label = "Phase 1"
+    elif phase == 2:
+      n = Auto3dgmData.phase2SampledPoints
+      label = "Phase 2"
+    else:
+      raise ValueError('Unaccepted phase number passed to Auto3dgmLogic.exportAlignedLandmarks')
+
+    m = Auto3dgmData.datasetCollection.datasets[n][n]
+    r = Auto3dgmData.datasetCollection.analysis_sets[label].globalized_alignment['r']
+    p = Auto3dgmData.datasetCollection.analysis_sets[label].globalized_alignment['p']
+    landmarks = Auto3dgmLogic.landmarksFromPseudoLandmarks(m, p, r)
+
+    for l in landmarks:
+      Auto3dgmLogic.saveNumpyArrayToCsv(l.vertices, os.path.join(exportFolder, l.name))
+
+  def prepareDirs(exportFolder, subDirs=[]):
+    if not os.path.exists(exportFolder):
+      os.makedirs(exportFolder)
+    for subdir in subDirs:
+      d = os.path.join(exportFolder, subdir)
+      if not os.path.exists(d):
+        os.makedirs(d)
+
+  def removeDir(trashFolder):
+    if os.path.exists(trashFolder):
+      shutil.rmtree(trashFolder)
+
+  def copyAlignedMeshes(targetFolder, outputFolder, phase = 2):
+    if phase not in [1, 2]:
+      raise ValueError('Unaccepted phase number passed to Auto3dgmLogic.copyAlignedMeshes')
+
+    for item in os.listdir(targetFolder):
+      s = os.path.join(targetFolder, item)
+      if os.path.isfile(s):
+        os.unlink(s)
+
+    srcFolder = os.path.join(outputFolder, 'phase' + str(phase), 'aligned_meshes')
+    for item in os.listdir(srcFolder):
+      s = os.path.join(srcFolder, item)
+      d = os.path.join(targetFolder, item)
+      if os.path.isfile(s):
+        shutil.copy2(s, d)
+
+  def serveWebViewer(viewFolder):
+    parameters = { 'MeshDirectory': viewFolder }
     return slicer.cli.run(slicer.modules.meshviewer, None, parameters)
   
   def createWebWidget():
