@@ -4,6 +4,8 @@
 ### Download and install 3d Slicer
 
 https://download.slicer.org/
+
+NB: Make sure to install version 4.11 or newer (preview version as of Dec 14 2019)
 -----------
 
 ### Install scipy and lap manually:
@@ -13,7 +15,7 @@ https://download.slicer.org/
 
         from pip._internal import main
         main(['install','scipy'])
-        main(['install','lap']
+        main(['install','lap'])
 
 NB: Different operating systems may need different commands.
 
