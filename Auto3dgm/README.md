@@ -5,7 +5,10 @@
 
 https://download.slicer.org/
 
+
 NB: Make sure to install version 4.11 or newer (preview version as of Dec 14 2019)
+
+
 -----------
 
 ### Install scipy and lap manually:
