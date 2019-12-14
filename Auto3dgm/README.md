@@ -1,6 +1,11 @@
 # How to install the extension
 -----------
 
+# The below is outdated. See the workshop instructions:
+
+https://github.com/SlicerMorph/S_2019/tree/master/Lab09_Auto3dgm
+
+
 ### Download and install 3d Slicer
 
 https://download.slicer.org/
