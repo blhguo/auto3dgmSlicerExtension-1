@@ -264,12 +264,14 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     print(self.Auto3dgmData.datasetCollection.datasets)
 
   def phase1StepButtonOnLoad(self):
+    #TODO: Added a new parameter to the analysis function representing parallelization
     self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, self.parallelizationCheckBox.checked, phase=1),"Phase 1")
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     print('Exporting data')
     Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [1])
 
   def phase2StepButtonOnLoad(self):
+    #TODO: Added a new parameter to the analysis function representing parallelization
     self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, self.parallelizationCheckBox.checked, phase=2),"Phase 2")
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [2])
@@ -277,6 +279,7 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
   def allStepsButtonOnLoad(self):
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     self.Auto3dgmData.phase2SampledPoints = self.phase2PointNumber.value
+    #TODO: Added a new parameter to the analysis function representing parallelization
     Auto3dgmLogic.runAll(self.Auto3dgmData, self.reflectionCheckBox.checked, self.parallelizationCheckBox.checked)
     Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [1, 2])
 
