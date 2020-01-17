@@ -146,6 +146,11 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     self.reflectionCheckBox.setToolTip("Whether meshes can be reflected/mirrored to achieve more optimal alignments.")
     self.parameterLayout.addRow("Allow reflection", self.reflectionCheckBox)
 
+    self.parallelizationCheckBox = qt.QCheckBox()
+    self.parallelizationCheckBox.checked = 0
+    self.parallelizationCheckBox.setToolTip("Whether meshes should be processed in parallel.")
+    self.parameterLayout.addRow("Allow parallelization", self.parallelizationCheckBox)
+
     self.subsampleComboBox = qt.QComboBox()
     self.subsampleComboBox.addItem("FPS (Furthest Point Sampling)")
     self.subsampleComboBox.addItem("GPL (Gaussian Process Landmarks)")
@@ -259,20 +264,20 @@ class Auto3dgmWidget(ScriptedLoadableModuleWidget):
     print(self.Auto3dgmData.datasetCollection.datasets)
 
   def phase1StepButtonOnLoad(self):
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, phase=1),"Phase 1")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, self.parallelizationCheckBox.checked, phase=1),"Phase 1")
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     print('Exporting data')
     Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [1])
 
   def phase2StepButtonOnLoad(self):
-    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, phase=2),"Phase 2")
+    self.Auto3dgmData.datasetCollection.add_analysis_set(Auto3dgmLogic.correspondence(self.Auto3dgmData, self.reflectionCheckBox.checked, self.parallelizationCheckBox.checked, phase=2),"Phase 2")
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [2])
 
   def allStepsButtonOnLoad(self):
     self.Auto3dgmData.phase1SampledPoints = self.phase1PointNumber.value
     self.Auto3dgmData.phase2SampledPoints = self.phase2PointNumber.value
-    Auto3dgmLogic.runAll(self.Auto3dgmData, self.reflectionCheckBox.checked)
+    Auto3dgmLogic.runAll(self.Auto3dgmData, self.reflectionCheckBox.checked, self.parallelizationCheckBox.checked)
     Auto3dgmLogic.exportData(self.Auto3dgmData, self.outputFolder, phases = [1, 2])
 
   ### OUTPUT TAB WIDGETS AND BEHAVIORS
